@@ -1,0 +1,73 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.1 Chrome/142.0.7444.265 Electron/39.8.0 Safari/537.36" version="29.6.1">
+  <diagram name="Page-1" id="eGLxvYbepEwkOSkdZTyz">
+    <mxGraphModel dx="1584" dy="911" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-1" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="SERVER" vertex="1">
+          <mxGeometry height="182" width="200" x="80" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-2" parent="Tb4FIb5zgBx2k1qqbaRs-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Deck of cards" vertex="1">
+          <mxGeometry height="26" width="200" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-3" parent="Tb4FIb5zgBx2k1qqbaRs-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Each player&#39;s hand" vertex="1">
+          <mxGeometry height="26" width="200" y="52" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-4" parent="Tb4FIb5zgBx2k1qqbaRs-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Game round" vertex="1">
+          <mxGeometry height="26" width="200" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-6" parent="Tb4FIb5zgBx2k1qqbaRs-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Betting logic" vertex="1">
+          <mxGeometry height="26" width="200" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-7" parent="Tb4FIb5zgBx2k1qqbaRs-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Winner calculation" vertex="1">
+          <mxGeometry height="26" width="200" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-8" parent="Tb4FIb5zgBx2k1qqbaRs-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Player/Session management" vertex="1">
+          <mxGeometry height="26" width="200" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-5" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;This document simply shows where data is stored during runtime and what gets transferred back and forth.&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="410" x="345" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-9" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="CLIENT" vertex="1">
+          <mxGeometry height="182" width="370" x="690" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-10" parent="Tb4FIb5zgBx2k1qqbaRs-9" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Specific player&#39;s hand" vertex="1">
+          <mxGeometry height="26" width="370" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-11" parent="Tb4FIb5zgBx2k1qqbaRs-9" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Ability to make game actions" vertex="1">
+          <mxGeometry height="26" width="370" y="52" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-12" parent="Tb4FIb5zgBx2k1qqbaRs-9" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Every player&#39;s amount of money" vertex="1">
+          <mxGeometry height="26" width="370" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-13" parent="Tb4FIb5zgBx2k1qqbaRs-9" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Community cards" vertex="1">
+          <mxGeometry height="26" width="370" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-14" parent="Tb4FIb5zgBx2k1qqbaRs-9" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Game info (Min and max bet, who is still in the round, etc.)" vertex="1">
+          <mxGeometry height="26" width="370" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-15" parent="Tb4FIb5zgBx2k1qqbaRs-9" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Player/Session management" vertex="1">
+          <mxGeometry height="26" width="370" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-17" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Player-specific actions (Check, call, raise, fold)" vertex="1">
+          <mxGeometry height="30" width="260" x="380" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-21" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Game state and player actions" vertex="1">
+          <mxGeometry height="30" width="390" x="290" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-23" edge="1" parent="1" source="Tb4FIb5zgBx2k1qqbaRs-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="Tb4FIb5zgBx2k1qqbaRs-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-24" edge="1" parent="1" source="Tb4FIb5zgBx2k1qqbaRs-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="Tb4FIb5zgBx2k1qqbaRs-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-26" edge="1" parent="1" source="Tb4FIb5zgBx2k1qqbaRs-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="Tb4FIb5zgBx2k1qqbaRs-14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Tb4FIb5zgBx2k1qqbaRs-27" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Game and turn results" vertex="1">
+          <mxGeometry height="30" width="290" x="330" y="425" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
