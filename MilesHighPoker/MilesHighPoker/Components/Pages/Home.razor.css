@@ -1,0 +1,19 @@
+.app-container {
+    background-color: #35654d;
+    color: #fff;
+    height: 100vh;
+    width: 100%;
+}
+
+#gameplay-div {
+    background-color: #244836;
+    border: 1px solid #1b3528;
+    border-radius: 8px;
+    width: 88vw;
+    height: 84vh;
+}
+
+.container
+{
+    min-width: 90vw;
+}
