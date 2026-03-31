@@ -4,8 +4,26 @@
 
 <div class="app-container">
     <h1 class="text-center p-1">Miles High Poker</h1>
-    
+
     <div id="gameplay-div" class="container">
-        
+        <div id="community-card-div">
+            @for (var i = 0; i < CommunityCards.Length; i++)
+            {
+                <div
+                    id="community-card-@i"
+                    class="community-card-slot"
+                    data-slot="@i"
+                    @key="i">
+                    @if (CommunityCards[i] is null)
+                    {
+                        <span>Empty</span>
+                    }
+                    else
+                    {
+                        <span>@CommunityCards[i]</span>
+                    }
+                </div>
+            }
+        </div>
     </div>
 </div>

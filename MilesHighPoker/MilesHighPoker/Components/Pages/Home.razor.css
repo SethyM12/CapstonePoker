@@ -7,13 +7,34 @@
 
 #gameplay-div {
     background-color: #244836;
-    border: 1px solid #1b3528;
+    border: 1px solid black;
     border-radius: 8px;
     width: 88vw;
-    height: 84vh;
+    height: 88vh;
 }
 
 .container
 {
     min-width: 90vw;
+}
+
+#community-card-div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.community-card-slot {
+    width: clamp(70px, 9vw, 100px);
+    aspect-ratio: 5 / 7;
+    border: 1px solid #0f2118;
+    border-radius: 8px;
+    background-color: #1b3528;
+    color: #dbe9e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
 }
