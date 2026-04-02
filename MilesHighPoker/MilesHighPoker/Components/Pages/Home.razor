@@ -7,7 +7,7 @@
 
     <div id="gameplay-div" class="container">
         <div id="community-card-div">
-            @for (var i = 0; i < CommunityCards.Length; i++)
+            @for (int i = 0; i < CommunityCards.Length; i++)
             {
                 <div
                     id="community-card-@i"
@@ -24,6 +24,38 @@
                     }
                 </div>
             }
+        </div>
+        
+        <div id="top-left-player">
+            
+        </div>
+        
+        <div id="bottom-left-player">
+            
+        </div>
+        
+        <div id="top-right-player">
+            
+        </div>
+        
+        <div id="bottom-right-player">
+            
+        </div>
+        
+        <div id="current-player-div">
+            
+        </div>
+        
+        <div id="current-player-actions" class="text-center">
+            <button class="btn btn-danger m-3">
+                <h3>Raise</h3>
+            </button>
+            <button class="btn btn-danger m-3">
+                <h3>Call</h3>
+            </button>
+            <button class="btn btn-danger m-3">
+                <h3>Fold</h3>
+            </button>
         </div>
     </div>
 </div>

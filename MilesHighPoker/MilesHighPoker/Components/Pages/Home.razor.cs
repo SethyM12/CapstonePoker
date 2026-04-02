@@ -13,6 +13,8 @@ public partial class Home
     private void ClearCommunityCards()
     {
         for (var i = 0; i < CommunityCards.Length; i++)
+        {
             CommunityCards[i] = null;
+        }
     }
 }

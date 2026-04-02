@@ -7,7 +7,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="GameLogic\" />
       <Folder Include="Models\" />
     </ItemGroup>
 
