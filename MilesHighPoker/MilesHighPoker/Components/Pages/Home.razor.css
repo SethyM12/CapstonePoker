@@ -12,19 +12,23 @@
     width: 88vw;
     height: 88vh;
     position: relative;
+    overflow: hidden;
 }
 
-.container
-{
+.container {
     min-width: 90vw;
 }
 
+/* Community cards */
 #community-card-div {
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 1rem;
-    padding: 1rem 0;
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .community-card-slot {
@@ -40,14 +44,107 @@
     font-size: 0.85rem;
 }
 
-#current-player-actions
-{
+/* Pot */
+#pot {
+    position: absolute;
+    top: 8rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.player-seat {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    color: #fff;
+    min-width: clamp(150px, 16vw, 250px);
+    padding: 0.5rem 0.75rem;
+}
+
+.player-cards {
+    display: flex;
+    gap: clamp(0.4rem, 0.8vw, 0.9rem);
+}
+
+.player-card-slot {
+    width: clamp(58px, 5.4vw, 86px);
+    aspect-ratio: 5 / 7;
+    border: 1px solid #0f2118;
+    border-radius: 10px;
+    background-color: #1b3528;
+    color: #dbe9e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(0.8rem, 1.1vw, 1rem);
+}
+
+.player-name {
+    font-weight: 700;
+    text-align: center;
+    font-size: clamp(1rem, 1.4vw, 1.45rem);
+    line-height: 1.1;
+}
+
+.player-money {
+    color: #d7f5df;
+    font-size: clamp(0.95rem, 1.2vw, 1.2rem);
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+#top-left-player {
+    top: 1rem;
+    left: 1rem;
+}
+
+#top-right-player {
+    top: 1rem;
+    right: 1rem;
+}
+
+#bottom-left-player {
+    bottom: 6rem;
+    left: 1rem;
+}
+
+#bottom-right-player {
+    bottom: 6rem;
+    right: 1rem;
+}
+
+#current-player-div {
+    bottom: 7.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#current-player-actions {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 1rem;
-    bottom: 0;
     position: absolute;
-    right: 0;
-    left: 0;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+}
+
+div p
+{
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.btn:focus {
+    box-shadow: none;
+}
+
+.btn:focus-visible {
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
