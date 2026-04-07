@@ -63,12 +63,12 @@ public class Deck
 
     public void Shuffle()
     {
-        Random rng = new Random();
+        Random rand = new Random();
         int n = Cards.Count;
         while (n > 1)
         {
             n--;
-            int k = rng.Next(n + 1);
+            int k = rand.Next(n + 1);
             Card temp = Cards[k];
             Cards[k] = Cards[n];
             Cards[n] = temp;
@@ -100,11 +100,18 @@ public class Poker
     
     public void Deal(List<Player> players)
     {
-        for (int i = 0; i < players.Count * 2; i++)
+        if (players == null || players.Count == 0)
+            throw new ArgumentException("At least one player is required.", nameof(players));
+        
+        for (int round = 0; round < 2; round++)
         {
-            players[i].Cards.Add(Deck.Draw());
+            for (int seat = 0; seat < players.Count; seat++)
+            {
+                players[seat].Cards.Add(Deck.Draw());
+            }
         }
     }
+
 
     public void Flop()
     {

@@ -15,11 +15,10 @@
     overflow: hidden;
 }
 
-.container {
+#gameplay-div.container {
     min-width: 90vw;
 }
 
-/* Community cards */
 #community-card-div {
     display: flex;
     justify-content: center;
@@ -44,7 +43,6 @@
     font-size: 0.85rem;
 }
 
-/* Pot */
 #pot {
     position: absolute;
     top: 8rem;
@@ -135,7 +133,7 @@
     width: 100%;
 }
 
-div p
+#pot
 {
     font-size: 2rem;
     font-weight: bold;
@@ -147,4 +145,43 @@ div p
 
 .btn:focus-visible {
     box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+#poker-instructions-div {
+    background-color: #244836;
+    width: min(680px, calc(100% - 2rem));
+    margin: 1.5rem auto 2rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    color: #f7fffb;
+}
+
+#poker-instructions-div p
+{
+    font-size: 1.5rem;
+    color: whitesmoke;
+}
+
+h2
+{
+    color: #dbe9e1;
+}
+
+.instruction-section {
+    margin-top: 1.25rem;
+}
+
+.instruction-section h3 {
+    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.instruction-section ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    line-height: 1.65;
 }
