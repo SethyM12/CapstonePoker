@@ -2,7 +2,7 @@ using MilesHighPoker.Models;
 
 namespace MilesHighPoker.GameLogic;
 
-public enum PokerHands
+public enum PokerHand
 {
     HighCard,
     Pair,
@@ -80,15 +80,15 @@ public class Deck
         if (Cards.Count == 0)
             throw new InvalidOperationException("Deck is empty");
         
-        Card card = Cards[0];
-        Cards.RemoveAt(0);
+        Card card = Cards[Cards.Count - 1];
+        Cards.RemoveAt(Cards.Count - 1);
         return card;
     }
 }
 
 public class Poker
 {
-    private readonly short FLOP_CARD_COUNT = 3;
+    private static readonly short FLOP_CARD_COUNT = 3;
     private Deck Deck { get; init; }
     private Card[] CommunityCards { get; init; } = new Card[5];
 
@@ -103,11 +103,11 @@ public class Poker
         if (players == null || players.Count == 0)
             throw new ArgumentException("At least one player is required.", nameof(players));
         
-        for (int round = 0; round < 2; round++)
+        for (int i = 0; i < 2; i++)
         {
-            for (int seat = 0; seat < players.Count; seat++)
+            for (int j = 0; j < players.Count; j++)
             {
-                players[seat].Cards.Add(Deck.Draw());
+                players[j].Cards.Add(Deck.Draw());
             }
         }
     }
@@ -121,8 +121,80 @@ public class Poker
         }
     }
 
-    public Player ScoreHands(List<Card> player1Cards, List<Card> player2Cards)
+    public void Turn()
     {
-        return null;
+        CommunityCards[3] = Deck.Draw();
+    }
+
+    public void River()
+    {
+        CommunityCards[4] = Deck.Draw();
+    }
+    
+    public PokerHand GetHandType(Card[] playerCards)
+    {        
+        Card[] allCards = playerCards.Concat(CommunityCards).ToArray();
+        
+        var rankGroups = allCards
+            .GroupBy(c => c.Rank)
+            .Select(g => g.Count())
+            .OrderByDescending(c => c)
+            .ToList();
+        
+        if (ContainsStraightFlush(allCards)) return PokerHand.StraightFlush;
+        if (rankGroups[0] == 4) return PokerHand.FourOfAKind;
+        if (rankGroups.Contains(3) && rankGroups.Count(c => c >= 2) >= 2) return PokerHand.FullHouse;
+        if(ContainsFlush(allCards)) return PokerHand.Flush;
+        if(ContainsStraight(allCards)) return PokerHand.Straight;
+        if (rankGroups[0] == 3) return PokerHand.ThreeOfAKind;
+        if (rankGroups.Count(c => c == 2) >= 2) return PokerHand.TwoPair;
+        if (rankGroups.Count(c => c == 2) == 1) return PokerHand.Pair;
+        return  PokerHand.HighCard;
+    }
+
+    private static bool ContainsStraightFlush(Card[] cards)
+    {
+        return cards.GroupBy(c => c.Suit)
+            .Any(g => g.Count() >= 5 && ContainsStraight(g.ToArray()));
+    }
+
+    private static bool ContainsFlush(Card[] playerCards)
+    {
+        return playerCards
+            .GroupBy(c => c.Suit)
+            .Any(g => g.Count() >= 5);
+    }
+
+    private static bool ContainsStraight(Card[] playerCards)
+    {
+        List<int> ranks = playerCards
+            .Select(c => (int)c.Rank + 2)
+            .Distinct()
+            .OrderBy(r => r)
+            .ToList();
+
+        // Ace can be low in straight
+        if (ranks.Contains(14))
+        {
+            ranks.Insert(0, 1);
+        }
+
+        int runLength = 1;
+        
+        for (int i = 1; i < ranks.Count; i++)
+        {
+            if (ranks[i] == ranks[i - 1] + 1)
+            {
+                runLength++;
+                if (runLength >= 5)
+                    return true;
+            }
+            else
+            {
+                runLength = 1;
+            }
+        }
+
+        return false;
     }
 }
