@@ -48,7 +48,7 @@ public record Card
 
 public class Deck
 {
-    public List<Card> Cards { get; set; } = [];
+    private List<Card> Cards { get; set; } = [];
 
     public Deck()
     {
@@ -111,7 +111,6 @@ public class Poker
             }
         }
     }
-
 
     public void Flop()
     {
