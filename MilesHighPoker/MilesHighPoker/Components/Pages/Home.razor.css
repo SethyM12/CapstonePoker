@@ -69,16 +69,21 @@
 }
 
 .player-card-slot {
-    width: clamp(58px, 5.4vw, 86px);
-    aspect-ratio: 5 / 7;
-    border: 1px solid #0f2118;
-    border-radius: 10px;
-    background-color: #1b3528;
+    width: clamp(65px, 10vw, 90px);
+    aspect-ratio: 1 / 1.4;
     color: #dbe9e1;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: clamp(0.8rem, 1.1vw, 1rem);
+}
+
+.card-back-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: inherit;
 }
 
 .player-name {

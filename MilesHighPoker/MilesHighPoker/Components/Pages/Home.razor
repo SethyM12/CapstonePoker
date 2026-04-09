@@ -14,9 +14,12 @@
                      class="community-card-slot"
                      data-slot="@i"
                      @key="i">
-                    @if (CommunityCards[i] != null)
+                    @if (TestingCards[i] != null)
                     {
-                        <span>@CommunityCards[i]!.Rank of @CommunityCards[i]!.Suit</span>
+                        var card = TestingCards[i]!;
+                        <img class="community-card-slot"
+                             src="@($"{ToCardFile(card)}")"
+                             alt="@($"{card.Rank} of {card.Suit}")" />
                     }
                     else
                     {
@@ -32,8 +35,12 @@
 
         <div id="top-left-player" class="player-seat">
             <div class="player-cards">
-                <div id="top-left-player-card-0" class="player-card-slot">Card</div>
-                <div id="top-left-player-card-1" class="player-card-slot">Card</div>
+                <div id="top-left-player-card-0" class="player-card-slot">
+                    <img class="card-back-image" src="@CardBackPath" alt="Face-down card" />
+                </div>
+                <div id="top-left-player-card-1" class="player-card-slot">
+                    <img class="card-back-image" src="@CardBackPath" alt="Face-down card" />
+                </div>
             </div>
             <div id="top-left-player-name" class="player-name">Player Name</div>
             <div id="top-left-player-money" class="player-money">$0</div>
@@ -41,8 +48,12 @@
 
         <div id="top-right-player" class="player-seat">
             <div class="player-cards">
-                <div id="top-right-player-card-0" class="player-card-slot">Card</div>
-                <div id="top-right-player-card-1" class="player-card-slot">Card</div>
+                <div id="top-right-player-card-0" class="player-card-slot">
+                    <img class="card-back-image" src="@CardBackPath" alt="Face-down card" />
+                </div>
+                <div id="top-right-player-card-1" class="player-card-slot">
+                    <img class="card-back-image" src="@CardBackPath" alt="Face-down card" />
+                </div>
             </div>
             <div id="top-right-player-name" class="player-name">Player Name</div>
             <div id="top-right-player-money" class="player-money">$0</div>
@@ -50,8 +61,12 @@
 
         <div id="bottom-left-player" class="player-seat">
             <div class="player-cards">
-                <div id="bottom-left-player-card-0" class="player-card-slot">Card</div>
-                <div id="bottom-left-player-card-1" class="player-card-slot">Card</div>
+                <div id="bottom-left-player-card-0" class="player-card-slot">
+                    <img class="card-back-image" src="@CardBackPath" alt="Face-down card" />
+                </div>
+                <div id="bottom-left-player-card-1" class="player-card-slot">
+                    <img class="card-back-image" src="@CardBackPath" alt="Face-down card" />
+                </div>
             </div>
             <div id="bottom-left-player-name" class="player-name">Player Name</div>
             <div id="bottom-left-player-money" class="player-money">$0</div>
@@ -59,8 +74,12 @@
 
         <div id="bottom-right-player" class="player-seat">
             <div class="player-cards">
-                <div id="bottom-right-player-card-0" class="player-card-slot">Card</div>
-                <div id="bottom-right-player-card-1" class="player-card-slot">Card</div>
+                <div id="bottom-right-player-card-0" class="player-card-slot">
+                    <img class="card-back-image" src="@CardBackPath" alt="Face-down card" />
+                </div>
+                <div id="bottom-right-player-card-1" class="player-card-slot">
+                    <img class="card-back-image" src="@CardBackPath" alt="Face-down card" />
+                </div>
             </div>
             <div id="bottom-right-player-name" class="player-name">Player Name</div>
             <div id="bottom-right-player-money" class="player-money">$0</div>

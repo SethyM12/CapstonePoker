@@ -17,7 +17,7 @@ public enum PokerHand
 
 public enum CardRank
 {
-    Two,
+    Two = 2,
     Three,
     Four,
     Five,
@@ -86,13 +86,13 @@ public class Deck
     }
 }
 
-public class Poker
+public class PokerGame
 {
     private static readonly short FLOP_CARD_COUNT = 3;
     private Deck Deck { get; init; }
     private Card[] CommunityCards { get; init; } = new Card[5];
 
-    public Poker(Deck deck)
+    public PokerGame(Deck deck)
     {
         Deck = deck;
         Deck.Shuffle();
@@ -105,9 +105,9 @@ public class Poker
         
         for (int i = 0; i < 2; i++)
         {
-            for (int j = 0; j < players.Count; j++)
+            foreach (Player p in players)
             {
-                players[j].Cards.Add(Deck.Draw());
+                p.Cards.Add(Deck.Draw());
             }
         }
     }
@@ -134,11 +134,11 @@ public class Poker
     {        
         Card[] allCards = playerCards.Concat(CommunityCards).ToArray();
         
-        var rankGroups = allCards
+        int[] rankGroups = allCards
             .GroupBy(c => c.Rank)
             .Select(g => g.Count())
             .OrderByDescending(c => c)
-            .ToList();
+            .ToArray();
         
         if (ContainsStraightFlush(allCards)) return PokerHand.StraightFlush;
         if (rankGroups[0] == 4) return PokerHand.FourOfAKind;
