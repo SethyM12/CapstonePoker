@@ -40,6 +40,16 @@ public enum CardSuit
     Spades
 }
 
+public enum HandStreet
+{
+    PreDeal,
+    PreFlop,
+    Flop,
+    Turn,
+    River,
+    Showdown
+}
+
 public record Card
 {
     public CardRank Rank { get; init; }
@@ -91,6 +101,8 @@ public class PokerGame
     private static readonly short FLOP_CARD_COUNT = 3;
     private Deck Deck { get; init; }
     private Card[] CommunityCards { get; init; } = new Card[5];
+    
+    public HandStreet CurrentStreet { get; private set; } = HandStreet.PreDeal;
 
     public PokerGame(Deck deck)
     {
@@ -100,6 +112,9 @@ public class PokerGame
     
     public void Deal(List<Player> players)
     {
+        if(CurrentStreet != HandStreet.PreDeal)
+            throw new InvalidOperationException("Cards can only be dealt at the start of a round.");
+        
         if (players == null || players.Count == 0)
             throw new ArgumentException("At least one player is required.", nameof(players));
         
@@ -110,28 +125,46 @@ public class PokerGame
                 p.Cards.Add(Deck.Draw());
             }
         }
+
+        CurrentStreet = HandStreet.PreFlop;
     }
 
     public void Flop()
     {
+        if (CurrentStreet != HandStreet.PreFlop)
+            throw new InvalidOperationException("Flop can only be dealt after pre-flop.");
+        
         for(int i = 0; i < FLOP_CARD_COUNT; i++)
         {
             CommunityCards[i] = Deck.Draw();
         }
+
+        CurrentStreet = HandStreet.Flop;
     }
 
     public void Turn()
     {
+        if (CurrentStreet != HandStreet.Flop)
+            throw new InvalidOperationException("Turn can only be dealt after flop.");
+
         CommunityCards[3] = Deck.Draw();
+        CurrentStreet = HandStreet.Turn;
     }
 
     public void River()
     {
+        if (CurrentStreet != HandStreet.Turn)
+            throw new InvalidOperationException("River can only be dealt after turn.");
+
         CommunityCards[4] = Deck.Draw();
+        CurrentStreet = HandStreet.River;
     }
     
     public PokerHand GetHandType(Card[] playerCards)
     {        
+        if (CurrentStreet != HandStreet.River && CurrentStreet != HandStreet.Showdown)
+            throw new InvalidOperationException("Hand type can only be evaluated after river.");
+        
         Card[] allCards = playerCards.Concat(CommunityCards).ToArray();
         
         int[] rankGroups = allCards
@@ -139,6 +172,8 @@ public class PokerGame
             .Select(g => g.Count())
             .OrderByDescending(c => c)
             .ToArray();
+        
+        CurrentStreet = HandStreet.Showdown;
         
         if (ContainsStraightFlush(allCards)) return PokerHand.StraightFlush;
         if (rankGroups[0] == 4) return PokerHand.FourOfAKind;
@@ -167,12 +202,12 @@ public class PokerGame
     private static bool ContainsStraight(Card[] playerCards)
     {
         List<int> ranks = playerCards
-            .Select(c => (int)c.Rank + 2)
+            .Select(c => (int)c.Rank)
             .Distinct()
             .OrderBy(r => r)
             .ToList();
 
-        // Ace can be low in straight
+        // Ace can be 1 in straight
         if (ranks.Contains(14))
         {
             ranks.Insert(0, 1);

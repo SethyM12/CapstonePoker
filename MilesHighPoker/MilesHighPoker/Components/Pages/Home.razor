@@ -87,8 +87,22 @@
 
         <div id="current-player-div" class="player-seat current-player-seat">
             <div class="player-cards">
-                <div id="current-player-card-0" class="player-card-slot">Card</div>
-                <div id="current-player-card-1" class="player-card-slot">Card</div>
+                @for (int i = 0; i < PersonalTestCards.Length; i++)
+                {
+                    <div id="current-player-card-@i" class="player-card-slot">
+                        @if (PersonalTestCards[i] != null)
+                        {
+                            var card = PersonalTestCards[i]!;
+                            <img class="player-card-slot"
+                                 src="@($"{ToCardFile(card)}")"
+                                 alt="@($"{card.Rank} of {card.Suit}")" />
+                        }
+                        else
+                        {
+                            <img class="card-back-image" src="@CardBackPath" alt="Face-down card" />
+                        }
+                    </div>
+                }
             </div>
             <div id="current-player-name" class="player-name">You</div>
             <div id="current-player-money" class="player-money">$0</div>

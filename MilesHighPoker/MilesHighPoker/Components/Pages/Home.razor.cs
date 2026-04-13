@@ -13,6 +13,12 @@ public partial class Home
         new() { Rank = CardRank.Jack, Suit = CardSuit.Clubs },
         new() { Rank = CardRank.Ten, Suit = CardSuit.Spades }
     ];
+
+    private static readonly Card?[] PersonalTestCards =
+    [
+        new() { Rank = CardRank.Five, Suit = CardSuit.Hearts },
+        new() { Rank = CardRank.Four, Suit = CardSuit.Diamonds }
+    ];
     private Card?[] CommunityCards { get; set; } = new Card[5];
     private uint Pot { get; set; } = 0;
 
