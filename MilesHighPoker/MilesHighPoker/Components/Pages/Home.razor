@@ -1,5 +1,5 @@
 ﻿@page "/"
-@using MilesHighPoker.GameLogic
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Miles High Poker</PageTitle>
 
@@ -14,9 +14,9 @@
                      class="community-card-slot"
                      data-slot="@i"
                      @key="i">
-                    @if (TestingCards[i] != null)
+                    @if (CommunityCards[i] != null)
                     {
-                        var card = TestingCards[i]!;
+                        var card = CommunityCards[i]!;
                         <img class="community-card-slot"
                              src="@($"{ToCardFile(card)}")"
                              alt="@($"{card.Rank} of {card.Suit}")" />
@@ -87,19 +87,15 @@
 
         <div id="current-player-div" class="player-seat current-player-seat">
             <div class="player-cards">
-                @for (int i = 0; i < PersonalTestCards.Length; i++)
+                @for (int i = 0; i < PlayerHand.Length; i++)
                 {
                     <div id="current-player-card-@i" class="player-card-slot">
-                        @if (PersonalTestCards[i] != null)
+                        @if (PlayerHand[i] != null)
                         {
-                            var card = PersonalTestCards[i]!;
-                            <img class="player-card-slot"
+                            var card = PlayerHand[i]!;
+                            <img class="community-card-slot"
                                  src="@($"{ToCardFile(card)}")"
                                  alt="@($"{card.Rank} of {card.Suit}")" />
-                        }
-                        else
-                        {
-                            <img class="card-back-image" src="@CardBackPath" alt="Face-down card" />
                         }
                     </div>
                 }

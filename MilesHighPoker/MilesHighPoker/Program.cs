@@ -12,9 +12,6 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSignalR();
 
 // Game orchestration/state services
-// Choose lifetimes carefully:
-// - Singleton if you want in-memory tables shared across all users
-// - Scoped if table state should be per-request/circuit (usually NOT for multiplayer tables)
 builder.Services.AddSingleton<IGameManager, GameManager>();
 builder.Services.AddSingleton<ITableRegistry, TableRegistry>();
 

@@ -1,30 +1,68 @@
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.SignalR.Client;
 using MilesHighPoker.GameLogic;
 
 namespace MilesHighPoker.Components.Pages;
 
-public partial class Home
+public partial class Home : IAsyncDisposable
 {
-    private static readonly String CardBackPath = "/images/cards/card_back.png";
-    private static readonly Card?[] TestingCards =
-    [
-        new() { Rank = CardRank.Ace, Suit = CardSuit.Spades },
-        new() { Rank = CardRank.King, Suit = CardSuit.Hearts },
-        new() { Rank = CardRank.Queen, Suit = CardSuit.Diamonds },
-        new() { Rank = CardRank.Jack, Suit = CardSuit.Clubs },
-        new() { Rank = CardRank.Ten, Suit = CardSuit.Spades }
-    ];
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = default!;
 
-    private static readonly Card?[] PersonalTestCards =
-    [
-        new() { Rank = CardRank.Five, Suit = CardSuit.Hearts },
-        new() { Rank = CardRank.Four, Suit = CardSuit.Diamonds }
-    ];
+    private HubConnection? _hubConnection;
+    private bool _hubStarted;
+    private const string TableId = "table-1";
+
+    private static readonly string CardBackPath = "/images/cards/card_back.png";
+
     private Card?[] CommunityCards { get; set; } = new Card[5];
+
+    private Card?[] PlayerHand { get; set; } = new Card[2];
+
     private uint Pot { get; set; } = 0;
 
-    private static String ToCardFile(Card card)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        String rank = card.Rank switch
+        if (!firstRender || _hubStarted)
+            return;
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/poker"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<string>("PlayerJoined", connectionId =>
+        {
+            Console.WriteLine($"Player joined: {connectionId}");
+        });
+        
+        _hubConnection.On<string, string>("PlayerActionReceived", (connectionId, action) =>
+        {
+            Console.WriteLine($"{connectionId} did {action}");
+        });
+
+        _hubConnection.Reconnected += async _ =>
+        {
+            Console.WriteLine("Reconnected; rejoining table...");
+            if (_hubConnection is not null)
+                await _hubConnection.InvokeAsync("JoinTable", TableId);
+        };
+
+        _hubConnection.Closed += error =>
+        {
+            Console.WriteLine($"Connection closed: {error?.Message}");
+            return Task.CompletedTask;
+        };
+
+        await _hubConnection.StartAsync();
+        await _hubConnection.InvokeAsync("JoinTable", TableId);
+
+        _hubStarted = true;
+    }
+
+    private static string ToCardFile(Card card)
+    {
+        string rank = card.Rank switch
         {
             CardRank.Two => "2",
             CardRank.Three => "3",
@@ -42,7 +80,7 @@ public partial class Home
             _ => throw new ArgumentOutOfRangeException()
         };
 
-        String suit = card.Suit switch
+        string suit = card.Suit switch
         {
             CardSuit.Clubs => "clubs",
             CardSuit.Diamonds => "diamonds",
@@ -52,5 +90,13 @@ public partial class Home
         };
 
         return $"images/cards/{rank}_of_{suit}.png";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
     }
 }

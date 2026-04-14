@@ -69,8 +69,8 @@
 }
 
 .player-card-slot {
-    width: clamp(65px, 10vw, 90px);
-    aspect-ratio: 1 / 1.4;
+    width: clamp(70px, 9vw, 100px);
+    aspect-ratio: 5 / 7;
     color: #dbe9e1;
     display: flex;
     align-items: center;

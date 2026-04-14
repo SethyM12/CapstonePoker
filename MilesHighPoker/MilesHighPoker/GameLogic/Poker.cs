@@ -104,6 +104,8 @@ public class PokerGame
     
     public HandStreet CurrentStreet { get; private set; } = HandStreet.PreDeal;
 
+    public int CurrentBet { get; set; } = 0;
+
     public PokerGame(Deck deck)
     {
         Deck = deck;
@@ -122,7 +124,7 @@ public class PokerGame
         {
             foreach (Player p in players)
             {
-                p.Cards.Add(Deck.Draw());
+                p.ReceiveDealtCard(Deck.Draw());
             }
         }
 
