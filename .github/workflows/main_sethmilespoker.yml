@@ -23,6 +23,9 @@ jobs:
         with:
           dotnet-version: '8.x'
 
+      - name: Proper directory
+        run: cd MilesHighPoker
+
       - name: Build with dotnet
         run: dotnet build --configuration Release
 
