@@ -63,4 +63,12 @@ public class PokerHub : Hub
         List<WaitingPlayer> players = await GetWaitingPlayers(tableId);
         await Clients.Group(tableId).SendAsync("WaitingPlayersUpdated", players);
     }
+    
+    public async Task JoinTable(String tableId)
+    {
+        if (String.IsNullOrWhiteSpace(tableId))
+            throw new HubException("Table id is required.");
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, tableId);
+    }
 }
