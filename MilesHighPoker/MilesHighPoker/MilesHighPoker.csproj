@@ -4,6 +4,7 @@
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <StaticWebAssetBasePath>/</StaticWebAssetBasePath>
     </PropertyGroup>
 
     <ItemGroup>
@@ -13,6 +14,5 @@
     <ItemGroup>
       <Content Update="wwwroot/**" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
-
 
 </Project>
