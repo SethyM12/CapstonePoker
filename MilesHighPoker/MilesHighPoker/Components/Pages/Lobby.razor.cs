@@ -29,11 +29,12 @@ public partial class Lobby : IAsyncDisposable
 
         _hubConnection.On<List<WaitingPlayer>>("WaitingPlayersUpdated", players =>
         {
-            WaitingPlayers = players.OrderBy(p => p.Joined).ToList();
+            WaitingPlayers = players.OrderBy(p => p.JoinedDate).ToList();
             _ = InvokeAsync(StateHasChanged);
         });
 
         await _hubConnection.StartAsync();
+        await _hubConnection.InvokeAsync("JoinTable", TableId);
 
         WaitingPlayers = await _hubConnection.InvokeAsync<List<WaitingPlayer>>("GetWaitingPlayers", TableId);
         await InvokeAsync(StateHasChanged);
@@ -56,6 +57,12 @@ public partial class Lobby : IAsyncDisposable
             return;
         }
 
+        if (WaitingPlayers.Any(p => String.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            NameError = "That display name is already in use.";
+            return;
+        }
+
         IsJoining = true;
         try
         {
@@ -73,8 +80,13 @@ public partial class Lobby : IAsyncDisposable
         }
     }
 
-    private void EnterGame()
+    private async Task EnterGame()
     {
+        if (_hubConnection is not null && _hubConnection.State == HubConnectionState.Connected && HasJoined)
+        {
+            await _hubConnection.InvokeAsync("LeaveLobby", TableId);
+        }
+
         NavigationManager.NavigateTo("/Game");
     }
 

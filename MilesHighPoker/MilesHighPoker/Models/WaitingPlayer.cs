@@ -3,5 +3,5 @@ namespace MilesHighPoker.Models;
 public record WaitingPlayer(
     String ConnectionId,
     String Name,
-    DateTime Joined
+    DateTime JoinedDate
 );

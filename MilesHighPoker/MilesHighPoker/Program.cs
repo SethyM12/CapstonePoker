@@ -11,6 +11,7 @@ builder.Services.AddRazorComponents()
 // Multiplayer transport
 builder.Services.AddSignalR();
 
+
 // Game orchestration/state services
 builder.Services.AddSingleton<IGameManager, GameManager>();
 builder.Services.AddSingleton<ITableRegistry, TableRegistry>();
@@ -26,7 +27,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// app.UseHttpsRedirection();
+app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
