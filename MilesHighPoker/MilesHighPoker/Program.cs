@@ -11,6 +11,7 @@ builder.Services.AddRazorComponents()
 // Multiplayer transport
 builder.Services.AddSignalR();
 
+
 // Game orchestration/state services
 builder.Services.AddSingleton<IGameManager, GameManager>();
 builder.Services.AddSingleton<ITableRegistry, TableRegistry>();

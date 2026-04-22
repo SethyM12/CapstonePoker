@@ -1,4 +1,4 @@
-﻿@page "/"
+﻿@page "/Game"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Miles High Poker</PageTitle>
@@ -17,8 +17,8 @@
                     @if (CommunityCards[i] != null)
                     {
                         var card = CommunityCards[i]!;
-                        <img class="community-card-slot"
-                             src="@($"{ToCardFile(card)}")"
+                        <img class="card-face-image"
+                             src="@ToCardFile(card)"
                              alt="@($"{card.Rank} of {card.Suit}")" />
                     }
                     else
@@ -30,7 +30,7 @@
         </div>
 
         <div id="pot">
-            <p class="text-center m-5">$@Pot</p>
+            <p class="text-center m-0">$@Pot</p>
         </div>
 
         <div id="top-left-player" class="player-seat">
@@ -93,9 +93,13 @@
                         @if (PlayerHand[i] != null)
                         {
                             var card = PlayerHand[i]!;
-                            <img class="community-card-slot"
-                                 src="@($"{ToCardFile(card)}")"
+                            <img class="card-face-image"
+                                 src="@ToCardFile(card)"
                                  alt="@($"{card.Rank} of {card.Suit}")" />
+                        }
+                        else
+                        {
+                            <span>Empty</span>
                         }
                     </div>
                 }
@@ -105,19 +109,19 @@
         </div>
 
         <div id="current-player-actions" class="text-center">
-            <button class="btn btn-danger m-3">
-                <h3>Raise</h3>
+            <button class="btn btn-danger">
+                <span class="action-label">Raise</span>
             </button>
-            <button class="btn btn-danger m-3">
-                <h3>Call</h3>
+            <button class="btn btn-danger">
+                <span class="action-label">Call</span>
             </button>
-            <button class="btn btn-danger m-3">
-                <h3>Fold</h3>
+            <button class="btn btn-danger">
+                <span class="action-label">Fold</span>
             </button>
         </div>
     </div>
 </div>
-    
+
 <div id="poker-instructions-div" class="container mt-4">
     <h2 class="text-center fw-bolder">How to Play</h2>
 
@@ -165,7 +169,7 @@
             <li><strong>Split pot with odd chip:</strong> Extra chip goes to the tied winner first clockwise from the dealer.</li>
         </ul>
     </section>
-    
+
     <section class="instruction-section">
         <h3>Hand Rankings (Best to Worst)</h3>
         <ol>

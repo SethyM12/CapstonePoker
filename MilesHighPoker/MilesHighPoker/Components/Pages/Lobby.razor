@@ -1,0 +1,59 @@
+@page "/"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<div class="lobby-page">
+    <div class="lobby-card">
+        <h1>Lobby</h1>
+        <p class="muted">Choose a name to join the waiting table.</p>
+
+        @if (!HasJoined)
+        {
+            <div class="join-row">
+                <input class="name-input"
+                       maxlength="20"
+                       @bind="PendingName"
+                       @bind:event="oninput"
+                       placeholder="Enter display name" />
+                <button class="btn btn-success"
+                        @onclick="JoinLobbyAsync"
+                        disabled="@IsJoining">
+                    Join
+                </button>
+            </div>
+
+            @if (!String.IsNullOrWhiteSpace(NameError))
+            {
+                <p class="error">@NameError</p>
+            }
+        }
+        else
+        {
+            <div class="joined-row">
+                <span>Joined as <strong>@PendingName</strong></span>
+                <button class="btn btn-primary" @onclick="EnterGame">Enter Game</button>
+            </div>
+        }
+
+        <div class="waiting-list">
+            <div class="waiting-header">
+                <span>Waiting Players (@WaitingPlayers.Count)</span>
+                <span>Status</span>
+            </div>
+
+            @if (WaitingPlayers.Count == 0)
+            {
+                <div class="waiting-empty">No one is waiting yet.</div>
+            }
+            else
+            {
+                @foreach (var player in WaitingPlayers)
+                {
+                    <div class="waiting-row">
+                        <span class="player-name">@player.Name</span>
+                        <span class="status">Waiting</span>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>

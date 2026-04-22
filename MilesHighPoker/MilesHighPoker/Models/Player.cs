@@ -6,9 +6,9 @@ public sealed class Player
 {
     private readonly List<Card> _cards = [];
 
-    public string Name { get; private set; }
+    public String Name { get; private set; }
     public uint Id { get; }
-    public string ConnectionId { get; private set; }
+    public String ConnectionId { get; private set; }
     public IReadOnlyList<Card> Cards => _cards;
 
     public uint Chips { get; private set; }
@@ -20,11 +20,11 @@ public sealed class Player
     public bool IsAllIn => Chips == 0 && !Folded;
     public bool CanAct => !Folded && Chips > 0;
 
-    public Player(string name, uint id, string connectionId, short seat, uint startingChips)
+    public Player(String name, uint id, String connectionId, short seat, uint startingChips)
     {
-        if (string.IsNullOrWhiteSpace(name))
+        if (String.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Player name is required.", nameof(name));
-        if (string.IsNullOrWhiteSpace(connectionId))
+        if (String.IsNullOrWhiteSpace(connectionId))
             throw new ArgumentException("ConnectionId is required.", nameof(connectionId));
 
         Name = name;
@@ -34,9 +34,9 @@ public sealed class Player
         Chips = startingChips;
     }
 
-    public void UpdateConnection(string connectionId)
+    public void UpdateConnection(String connectionId)
     {
-        if (string.IsNullOrWhiteSpace(connectionId))
+        if (String.IsNullOrWhiteSpace(connectionId))
             throw new ArgumentException("ConnectionId is required.", nameof(connectionId));
 
         ConnectionId = connectionId;

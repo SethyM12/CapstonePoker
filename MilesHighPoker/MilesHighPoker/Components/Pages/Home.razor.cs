@@ -7,13 +7,13 @@ namespace MilesHighPoker.Components.Pages;
 public partial class Home : IAsyncDisposable
 {
     [Inject]
-    private NavigationManager NavigationManager { get; set; } = default!;
+    private NavigationManager NavigationManager { get; set; } = null!;
 
     private HubConnection? _hubConnection;
     private bool _hubStarted;
-    private const string TableId = "table-1";
+    private const String TableId = "table-1";
 
-    private static readonly string CardBackPath = "/images/cards/card_back.png";
+    private static readonly String CardBackPath = "/images/cards/card_back.png";
 
     private Card?[] CommunityCards { get; set; } = new Card[5];
 
@@ -31,12 +31,12 @@ public partial class Home : IAsyncDisposable
             .WithAutomaticReconnect()
             .Build();
 
-        _hubConnection.On<string>("PlayerJoined", connectionId =>
+        _hubConnection.On<String>("PlayerJoined", connectionId =>
         {
             Console.WriteLine($"Player joined: {connectionId}");
         });
         
-        _hubConnection.On<string, string>("PlayerActionReceived", (connectionId, action) =>
+        _hubConnection.On<String, String>("PlayerActionReceived", (connectionId, action) =>
         {
             Console.WriteLine($"{connectionId} did {action}");
         });
@@ -60,9 +60,9 @@ public partial class Home : IAsyncDisposable
         _hubStarted = true;
     }
 
-    private static string ToCardFile(Card card)
+    private static String ToCardFile(Card card)
     {
-        string rank = card.Rank switch
+        String rank = card.Rank switch
         {
             CardRank.Two => "2",
             CardRank.Three => "3",
@@ -80,7 +80,7 @@ public partial class Home : IAsyncDisposable
             _ => throw new ArgumentOutOfRangeException()
         };
 
-        string suit = card.Suit switch
+        String suit = card.Suit switch
         {
             CardSuit.Clubs => "clubs",
             CardSuit.Diamonds => "diamonds",
