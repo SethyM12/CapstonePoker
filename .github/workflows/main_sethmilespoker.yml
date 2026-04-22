@@ -44,12 +44,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: .net-app
-      
+          # Download to a specific directory to avoid path confusion
+          path: ./publish
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'sethmilespoker'
           slot-name: 'Production'
-          package: .
+          # Point exactly to the folder containing the published files
+          package: ./publish
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_A32F325CCA654E89A291652B5A1D1684 }}
