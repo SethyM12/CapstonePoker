@@ -27,13 +27,15 @@ jobs:
         run: dotnet build MilesHighPoker/ --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish MilesHighPoker/ -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        # Publish to a local 'out' folder instead of the DOTNET_ROOT
+        run: dotnet publish MilesHighPoker/ -c Release -o ./publish-folder
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          # Upload the CONTENTS of the folder
+          path: ./publish-folder
 
   deploy:
     runs-on: ubuntu-latest
