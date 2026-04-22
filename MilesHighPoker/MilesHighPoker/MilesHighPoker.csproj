@@ -11,7 +11,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Content Update="wwwroot/**" CopyToPublishDirectory="PreserveNewest" />
+      <Content Update="wwwroot/**" CopyToPublishDirectory="Always" />
     </ItemGroup>
 
 </Project>
