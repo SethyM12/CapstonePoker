@@ -27,6 +27,9 @@ public sealed class Player
         if (String.IsNullOrWhiteSpace(connectionId))
             throw new ArgumentException("ConnectionId is required.", nameof(connectionId));
 
+        if (startingChips == 0)
+            throw new ArgumentException("Starting chips must be greater than zero.", nameof(startingChips));
+
         Name = name;
         Id = id;
         ConnectionId = connectionId;
@@ -73,6 +76,9 @@ public sealed class Player
 
     public uint CallTo(uint targetBet)
     {
+        if (Folded)
+            throw new InvalidOperationException("Folded player cannot call.");
+
         if (targetBet <= Bet)
             return 0;
 

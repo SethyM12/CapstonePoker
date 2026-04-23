@@ -50,6 +50,15 @@ public enum HandStreet
     Showdown
 }
 
+public enum PlayerAction
+{
+    Fold,
+    Check,
+    Call, 
+    Bet,
+    Raise
+}
+
 public record Card
 {
     public CardRank Rank { get; init; }
@@ -104,13 +113,15 @@ public class PokerGame
     
     public HandStreet CurrentStreet { get; private set; } = HandStreet.PreDeal;
 
-    public int CurrentBet { get; set; } = 0;
+    public uint CurrentBet { get; set; } = 0;
 
     public PokerGame(Deck deck)
     {
         Deck = deck;
         Deck.Shuffle();
     }
+    
+    public Card[] GetCommunityCards() => (Card[])CommunityCards.Clone();
     
     public void Deal(List<Player> players)
     {
