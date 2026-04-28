@@ -1,6 +1,6 @@
 namespace MilesHighPoker.Services;
 
-public class TableRegistry : ITableRegistry
+public class TableRegistry
 {
     
 }

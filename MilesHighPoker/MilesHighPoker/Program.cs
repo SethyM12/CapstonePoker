@@ -13,8 +13,8 @@ builder.Services.AddSignalR();
 
 
 // Game orchestration/state services
-builder.Services.AddSingleton<IGameManager, GameManager>();
-builder.Services.AddSingleton<ITableRegistry, TableRegistry>();
+builder.Services.AddSingleton<GameManager>();
+builder.Services.AddSingleton<TableRegistry>();
 
 // Optional operational endpoint
 builder.Services.AddHealthChecks();

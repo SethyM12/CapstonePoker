@@ -9,7 +9,7 @@ public class PokerHub : Hub
     private static readonly ConcurrentDictionary<String, ConcurrentDictionary<String, WaitingPlayer>> WaitingByTable
         = new();
 
-public async Task SetDisplayName(String tableId, String name)
+    public async Task SetDisplayName(String tableId, String name)
     {
         if (String.IsNullOrWhiteSpace(tableId))
             throw new HubException("Table id is required.");

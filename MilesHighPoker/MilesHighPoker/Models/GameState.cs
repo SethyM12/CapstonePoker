@@ -16,7 +16,7 @@ public class GameState
     public uint BigBlind { get; private set; }
 
     public short DealerPosition { get; private set; }
-    public short CurrentPlayerPosition { get; private set; }
+    public short CurrentPlayerPosition { get; set; }
     public short? LastAggressorPosition { get; private set; }
 
     public uint HandNumber { get; private set; }

@@ -1,6 +1,6 @@
 namespace MilesHighPoker.Services;
 
-public class GameManager : IGameManager
+public class GameManager
 {
     
 }
