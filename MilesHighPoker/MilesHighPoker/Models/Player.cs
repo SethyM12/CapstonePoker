@@ -19,6 +19,7 @@ public sealed class Player
 
     public bool IsAllIn => Chips == 0 && !Folded;
     public bool CanAct => !Folded && Chips > 0;
+    public bool IsDealer { get; set; }
 
     public Player(String name, uint id, String connectionId, short seat, uint startingChips)
     {

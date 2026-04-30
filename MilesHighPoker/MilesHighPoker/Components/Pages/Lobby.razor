@@ -31,12 +31,16 @@
         {
             <div class="joined-row">
                 <span>Joined as <strong>@PendingName</strong></span>
-                <button class="btn btn-primary" @onclick="EnterGame">Enter Game</button>
+                <button class="btn btn-primary" @onclick="EnterGame">Enter Game Alone</button>
             </div>
         }
 
         <div class="waiting-list">
             <div class="waiting-header">
+                @if (HasJoined)
+                {
+                    <span style="width: 30px;"></span>
+                }
                 <span>Waiting Players (@WaitingPlayers.Count)</span>
                 <span>Status</span>
             </div>
@@ -50,11 +54,90 @@
                 @foreach (var player in WaitingPlayers)
                 {
                     <div class="waiting-row">
+                        @if (HasJoined && player.ConnectionId != CurrentConnectionId)
+                        {
+                            <input type="checkbox"
+                                   checked="@IsPlayerSelected(player.ConnectionId)"
+                                   @onchange="@((ChangeEventArgs e) => TogglePlayerSelection(player.ConnectionId))"
+                                   disabled="@(!CanSelectMore && !IsPlayerSelected(player.ConnectionId))" />
+                        }
+                        else
+                        {
+                            <span></span>
+                        }
                         <span class="player-name">@player.Name</span>
                         <span class="status">Waiting</span>
                     </div>
                 }
             }
         </div>
+
+        @if (HasJoined && SelectedPlayerIds.Count > 0)
+        {
+            <div class="invite-section">
+                <p>@SelectedPlayerIds.Count player(s) selected</p>
+                <button class="btn btn-info" @onclick="SendInvitesAsync">
+                    Send Invites
+                </button>
+            </div>
+        }
     </div>
 </div>
+
+@* Modal for outgoing invites (initiator waiting for responses) *@
+@if (ShowInviteModal)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Game Invites</h2>
+            <p>Waiting for responses...</p>
+            
+            <div class="invite-responses">
+                @foreach (var player in WaitingPlayers.Where(p => SelectedPlayerIds.Contains(p.ConnectionId)))
+                {
+                    <div class="response-row">
+                        <span>@player.Name</span>
+                        @if (InviteResponses.ContainsKey(player.ConnectionId))
+                        {
+                            @if (InviteResponses[player.ConnectionId] == null)
+                            {
+                                <span class="status pending">⏳ Pending</span>
+                            }
+                            else if (InviteResponses[player.ConnectionId] == true)
+                            {
+                                <span class="status accepted">✓ Accepted</span>
+                            }
+                            else
+                            {
+                                <span class="status declined">✗ Declined</span>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+
+            <button class="btn btn-secondary" @onclick="CloseInviteModal">Close</button>
+        </div>
+    </div>
+}
+
+@* Modal for incoming invites (invited player responding) *@
+@if (CurrentIncomingInvite is not null)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h2>Game Invite</h2>
+            <p><strong>@CurrentIncomingInvite.InitiatorName</strong> invited you to play!</p>
+            <p class="invite-detail">@(CurrentIncomingInvite.PlayerCount) player(s) will play including you.</p>
+            
+            <div class="invite-actions">
+                <button class="btn btn-success" @onclick="AcceptInviteAsync">
+                    Accept
+                </button>
+                <button class="btn btn-danger" @onclick="DeclineInviteAsync">
+                    Decline
+                </button>
+            </div>
+        </div>
+    </div>
+}
