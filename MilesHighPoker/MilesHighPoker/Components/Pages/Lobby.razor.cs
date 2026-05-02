@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR.Client;
+using MilesHighPoker.Hubs;
 using MilesHighPoker.Models;
 
 namespace MilesHighPoker.Components.Pages;
@@ -9,7 +10,7 @@ public partial class Lobby : IAsyncDisposable
     [Inject] private NavigationManager NavigationManager { get; set; } = null!;
 
     private const String TableId = "table-1";
-    private HubConnection? _hubConnection;
+    private HubConnection? HubConnection;
     private String? CurrentConnectionId { get; set; }
 
     private List<WaitingPlayer> WaitingPlayers { get; set; } = new();
@@ -18,18 +19,15 @@ public partial class Lobby : IAsyncDisposable
     private bool HasJoined { get; set; }
     private bool IsJoining { get; set; }
 
-    // Invitation state - for initiator
     private HashSet<String> SelectedPlayerIds { get; set; } = new();
     private bool ShowInviteModal { get; set; }
     private String? CurrentInviteId { get; set; }
     private Dictionary<String, bool?> InviteResponses { get; set; } = new();
-    private int TotalInvitesSent { get; set; }
 
-    // Invitation state - for invited players
-    private class IncomingInvite
+    private sealed class IncomingInvite
     {
-        public String? InviteId { get; set; }
-        public String? InitiatorName { get; set; }
+        public String InviteId { get; set; } = String.Empty;
+        public String InitiatorName { get; set; } = String.Empty;
         public int PlayerCount { get; set; }
     }
 
@@ -40,65 +38,65 @@ public partial class Lobby : IAsyncDisposable
         if (!firstRender)
             return;
 
-        _hubConnection = new HubConnectionBuilder()
+        HubConnection = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/poker"))
             .WithAutomaticReconnect()
             .Build();
 
-        _hubConnection.On<List<WaitingPlayer>>("WaitingPlayersUpdated", players =>
+        HubConnection.On<List<WaitingPlayer>>("WaitingPlayersUpdated", players =>
         {
             WaitingPlayers = players.OrderBy(p => p.JoinedDate).ToList();
             _ = InvokeAsync(StateHasChanged);
         });
 
-        // When you receive an invite
-        _hubConnection.On<String, dynamic>("GameInviteReceived", (inviteId, invite) =>
+        HubConnection.On<String>("InvitesSent", inviteId =>
         {
-            String initiatorName = invite["initiatorName"];
-            int invitedCount = ((List<String>)(invite["invitedConnectionIds"])).Count;
+            CurrentInviteId = inviteId;
+            _ = InvokeAsync(StateHasChanged);
+        });
 
+        HubConnection.On<String, GameInviteDto>("GameInviteReceived", (inviteId, invite) =>
+        {
             CurrentIncomingInvite = new IncomingInvite
             {
                 InviteId = inviteId,
-                InitiatorName = initiatorName,
-                PlayerCount = invitedCount
+                InitiatorName = invite.InitiatorName,
+                PlayerCount = invite.InvitedConnectionIds.Count + 1
             };
 
             _ = InvokeAsync(StateHasChanged);
         });
 
-        // When the initiator receives responses
-        _hubConnection.On<String, dynamic>("InviteResponseReceived", (inviteId, response) =>
+        HubConnection.On<String, InviteResponseDto>("InviteResponseReceived", (inviteId, response) =>
         {
-            if (inviteId == CurrentInviteId)
+            if (inviteId != CurrentInviteId)
+                return;
+
+            if (!String.IsNullOrWhiteSpace(response.RespondentConnectionId))
             {
-                String connectionId = response["respondentConnectionId"];
-                Boolean accepted = response["accepted"];
-                InviteResponses[connectionId] = accepted;
+                InviteResponses[response.RespondentConnectionId] = response.Accepted;
                 _ = InvokeAsync(StateHasChanged);
             }
         });
 
-        // When all responses are collected
-        _hubConnection.On<String, List<String>>("AllInvitesResolved", (inviteId, acceptedPlayers) =>
+        HubConnection.On<String, List<String>>("AllInvitesResolved", (inviteId, acceptedPlayers) =>
         {
-            if (inviteId == CurrentInviteId)
+            if (inviteId != CurrentInviteId)
+                return;
+
+            if (acceptedPlayers.Count > 0)
             {
-                if (acceptedPlayers.Count > 0)
-                {
-                    _ = StartGameWithPlayers(acceptedPlayers);
-                }
-                else
-                {
-                    NameError = "No players accepted your invite.";
-                    ShowInviteModal = false;
-                    _ = InvokeAsync(StateHasChanged);
-                }
+                _ = StartGameWithPlayers(acceptedPlayers);
+            }
+            else
+            {
+                NameError = "No players accepted your invite.";
+                ResetOutgoingInviteState();
+                _ = InvokeAsync(StateHasChanged);
             }
         });
 
-        // When initiator cancels
-        _hubConnection.On<String>("InviteCancelled", (inviteId) =>
+        HubConnection.On<String>("InviteCancelled", inviteId =>
         {
             if (CurrentIncomingInvite?.InviteId == inviteId)
             {
@@ -107,18 +105,43 @@ public partial class Lobby : IAsyncDisposable
             }
         });
 
-        await _hubConnection.StartAsync();
-        CurrentConnectionId = _hubConnection.ConnectionId;
-        await _hubConnection.InvokeAsync("JoinTable", TableId);
+        HubConnection.Reconnected += async connectionId =>
+        {
+            CurrentConnectionId = connectionId;
 
-        WaitingPlayers = await _hubConnection.InvokeAsync<List<WaitingPlayer>>("GetWaitingPlayers", TableId);
+            if (HubConnection is not null)
+            {
+                await HubConnection.InvokeAsync("JoinTable", TableId);
+
+                if (HasJoined && !String.IsNullOrWhiteSpace(PendingName))
+                {
+                    try
+                    {
+                        await HubConnection.InvokeAsync("SetDisplayName", TableId, PendingName);
+                    }
+                    catch (Exception ex)
+                    {
+                        NameError = ex.Message;
+                    }
+                }
+
+                WaitingPlayers = await HubConnection.InvokeAsync<List<WaitingPlayer>>("GetWaitingPlayers", TableId);
+                await InvokeAsync(StateHasChanged);
+            }
+        };
+
+        await HubConnection.StartAsync();
+        CurrentConnectionId = HubConnection.ConnectionId;
+
+        await HubConnection.InvokeAsync("JoinTable", TableId);
+        WaitingPlayers = await HubConnection.InvokeAsync<List<WaitingPlayer>>("GetWaitingPlayers", TableId);
         await InvokeAsync(StateHasChanged);
     }
 
     private async Task JoinLobbyAsync()
     {
         NameError = String.Empty;
-        String name = (PendingName ?? String.Empty).Trim();
+        String name = PendingName.Trim();
 
         if (name.Length < 2 || name.Length > 20)
         {
@@ -126,7 +149,7 @@ public partial class Lobby : IAsyncDisposable
             return;
         }
 
-        if (_hubConnection is null || _hubConnection.State != HubConnectionState.Connected)
+        if (HubConnection is null || HubConnection.State != HubConnectionState.Connected)
         {
             NameError = "Connection is not ready. Try again.";
             return;
@@ -139,11 +162,13 @@ public partial class Lobby : IAsyncDisposable
         }
 
         IsJoining = true;
+
         try
         {
-            await _hubConnection.InvokeAsync("SetDisplayName", TableId, name);
+            await HubConnection.InvokeAsync("SetDisplayName", TableId, name);
             PendingName = name;
             HasJoined = true;
+            CurrentConnectionId = HubConnection.ConnectionId;
         }
         catch (Exception ex)
         {
@@ -173,34 +198,36 @@ public partial class Lobby : IAsyncDisposable
 
     private async Task SendInvitesAsync()
     {
-        if (_hubConnection is null || !HasJoined || SelectedPlayerIds.Count == 0)
+        if (HubConnection is null || !HasJoined || SelectedPlayerIds.Count == 0)
             return;
 
         try
         {
             List<String> invitedIds = SelectedPlayerIds.ToList();
-            CurrentInviteId = Guid.NewGuid().ToString();
+
             InviteResponses = invitedIds.ToDictionary(id => id, _ => (bool?)null);
-            TotalInvitesSent = invitedIds.Count;
+            CurrentInviteId = null;
             ShowInviteModal = true;
 
-            await _hubConnection.InvokeAsync("SendGameInvite", TableId, invitedIds);
+            await HubConnection.InvokeAsync("SendGameInvite", TableId, invitedIds);
         }
         catch (Exception ex)
         {
             NameError = ex.Message;
+            ResetOutgoingInviteState();
         }
     }
 
     private async Task AcceptInviteAsync()
     {
-        if (_hubConnection is null || CurrentIncomingInvite?.InviteId is null)
+        if (HubConnection is null || CurrentIncomingInvite?.InviteId is null)
             return;
 
         try
         {
-            await _hubConnection.InvokeAsync("RespondToInvite", TableId, CurrentIncomingInvite.InviteId, true);
+            await HubConnection.InvokeAsync("RespondToInvite", TableId, CurrentIncomingInvite.InviteId, true);
             CurrentIncomingInvite = null;
+            await LeaveLobbyAndNavigateToGameAsync();
         }
         catch (Exception ex)
         {
@@ -210,12 +237,12 @@ public partial class Lobby : IAsyncDisposable
 
     private async Task DeclineInviteAsync()
     {
-        if (_hubConnection is null || CurrentIncomingInvite?.InviteId is null)
+        if (HubConnection is null || CurrentIncomingInvite?.InviteId is null)
             return;
 
         try
         {
-            await _hubConnection.InvokeAsync("RespondToInvite", TableId, CurrentIncomingInvite.InviteId, false);
+            await HubConnection.InvokeAsync("RespondToInvite", TableId, CurrentIncomingInvite.InviteId, false);
             CurrentIncomingInvite = null;
         }
         catch (Exception ex)
@@ -226,26 +253,46 @@ public partial class Lobby : IAsyncDisposable
 
     private async Task StartGameWithPlayers(List<String> acceptedConnectionIds)
     {
-        if (_hubConnection is not null && _hubConnection.State == HubConnectionState.Connected && HasJoined)
+        ResetOutgoingInviteState();
+
+        if (acceptedConnectionIds.Count == 0)
         {
-            await _hubConnection.InvokeAsync("LeaveLobby", TableId);
+            NameError = "No players accepted your invite.";
+            await InvokeAsync(StateHasChanged);
+            return;
         }
 
-        String playerList = String.Join(",", acceptedConnectionIds);
+        List<String> playerIds = new();
+
+        if (!String.IsNullOrWhiteSpace(CurrentConnectionId))
+            playerIds.Add(CurrentConnectionId);
+
+        playerIds.AddRange(
+            acceptedConnectionIds.Where(id => !String.IsNullOrWhiteSpace(id))
+        );
+
+        playerIds = playerIds
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        String playerList = String.Join(",", playerIds);
+
+        await LeaveLobbyIfJoinedAsync();
         NavigationManager.NavigateTo($"/Game?players={playerList}");
     }
 
     private async Task EnterGame()
     {
-        if (_hubConnection is not null && _hubConnection.State == HubConnectionState.Connected && HasJoined)
-        {
-            await _hubConnection.InvokeAsync("LeaveLobby", TableId);
-        }
-
+        await LeaveLobbyIfJoinedAsync();
         NavigationManager.NavigateTo("/Game");
     }
 
     private void CloseInviteModal()
+    {
+        ResetOutgoingInviteState();
+    }
+
+    private void ResetOutgoingInviteState()
     {
         ShowInviteModal = false;
         SelectedPlayerIds.Clear();
@@ -253,9 +300,37 @@ public partial class Lobby : IAsyncDisposable
         CurrentInviteId = null;
     }
 
+    private async Task LeaveLobbyIfJoinedAsync()
+    {
+        if (HubConnection is null || HubConnection.State != HubConnectionState.Connected || !HasJoined)
+            return;
+
+        try
+        {
+            await HubConnection.InvokeAsync("LeaveLobby", TableId);
+        }
+        catch
+        {
+            // Best effort only; navigation should still continue.
+        }
+        finally
+        {
+            HasJoined = false;
+        }
+    }
+
+    private async Task LeaveLobbyAndNavigateToGameAsync()
+    {
+        await LeaveLobbyIfJoinedAsync();
+        NavigationManager.NavigateTo("/Game");
+    }
+
     public async ValueTask DisposeAsync()
     {
-        if (_hubConnection is not null)
-            await _hubConnection.DisposeAsync();
+        if (HubConnection is not null)
+        {
+            await LeaveLobbyIfJoinedAsync();
+            await HubConnection.DisposeAsync();
+        }
     }
 }

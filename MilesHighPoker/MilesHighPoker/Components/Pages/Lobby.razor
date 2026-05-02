@@ -15,6 +15,7 @@
                        @bind="PendingName"
                        @bind:event="oninput"
                        placeholder="Enter display name" />
+
                 <button class="btn btn-success"
                         @onclick="JoinLobbyAsync"
                         disabled="@IsJoining">
@@ -58,13 +59,14 @@
                         {
                             <input type="checkbox"
                                    checked="@IsPlayerSelected(player.ConnectionId)"
-                                   @onchange="@((ChangeEventArgs e) => TogglePlayerSelection(player.ConnectionId))"
+                                   @onchange="@(() => TogglePlayerSelection(player.ConnectionId))"
                                    disabled="@(!CanSelectMore && !IsPlayerSelected(player.ConnectionId))" />
                         }
                         else
                         {
                             <span></span>
                         }
+
                         <span class="player-name">@player.Name</span>
                         <span class="status">Waiting</span>
                     </div>
@@ -84,19 +86,19 @@
     </div>
 </div>
 
-@* Modal for outgoing invites (initiator waiting for responses) *@
 @if (ShowInviteModal)
 {
     <div class="modal-overlay">
         <div class="modal-content">
             <h2>Game Invites</h2>
             <p>Waiting for responses...</p>
-            
+
             <div class="invite-responses">
                 @foreach (var player in WaitingPlayers.Where(p => SelectedPlayerIds.Contains(p.ConnectionId)))
                 {
                     <div class="response-row">
                         <span>@player.Name</span>
+
                         @if (InviteResponses.ContainsKey(player.ConnectionId))
                         {
                             @if (InviteResponses[player.ConnectionId] == null)
@@ -112,6 +114,10 @@
                                 <span class="status declined">✗ Declined</span>
                             }
                         }
+                        else
+                        {
+                            <span class="status pending">⏳ Pending</span>
+                        }
                     </div>
                 }
             </div>
@@ -121,7 +127,6 @@
     </div>
 }
 
-@* Modal for incoming invites (invited player responding) *@
 @if (CurrentIncomingInvite is not null)
 {
     <div class="modal-overlay">
@@ -129,7 +134,7 @@
             <h2>Game Invite</h2>
             <p><strong>@CurrentIncomingInvite.InitiatorName</strong> invited you to play!</p>
             <p class="invite-detail">@(CurrentIncomingInvite.PlayerCount) player(s) will play including you.</p>
-            
+
             <div class="invite-actions">
                 <button class="btn btn-success" @onclick="AcceptInviteAsync">
                     Accept

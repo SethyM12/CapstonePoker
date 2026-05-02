@@ -61,7 +61,7 @@ public sealed class PokerHub : Hub
     private static readonly ConcurrentDictionary<String, GameInviteDto> ActiveInvites
         = new(StringComparer.Ordinal);
 
-    private static readonly ConcurrentDictionary<String, ConcurrentBag<String>> InvitedPlayersResponses
+    private static readonly ConcurrentDictionary<String, ConcurrentDictionary<String, Boolean>> InvitedPlayersResponses
         = new(StringComparer.Ordinal);
 
     public PokerHub(GameManager gameManager)
@@ -235,107 +235,121 @@ public sealed class PokerHub : Hub
     
     #endregion
     
-#region Invitations
-    
+    #region Invitations
+
     public async Task SendGameInvite(String tableId, List<String> invitedConnectionIds)
     {
         EnsureTableId(tableId);
-    
+
         if (invitedConnectionIds is null || invitedConnectionIds.Count == 0)
             throw new HubException("Must invite at least one player.");
-    
+
         if (invitedConnectionIds.Count > 4)
             throw new HubException("Cannot invite more than 4 players.");
-    
+
         if (invitedConnectionIds.Contains(Context.ConnectionId))
             throw new HubException("Cannot invite yourself.");
-    
+
         if (!WaitingByTable.TryGetValue(tableId, out ConcurrentDictionary<String, WaitingPlayer>? lobby))
             throw new HubException("No one is waiting at this table.");
-    
+
         foreach (String connectionId in invitedConnectionIds)
         {
             if (!lobby.ContainsKey(connectionId))
                 throw new HubException("One or more invited players are not in the lobby.");
         }
-    
+
+        if (!lobby.TryGetValue(Context.ConnectionId, out WaitingPlayer? initiator))
+            throw new HubException("Could not determine your display name.");
+
         String inviteId = Guid.NewGuid().ToString();
-    
+
         GameInviteDto invite = new GameInviteDto(
             Context.ConnectionId,
-            Context.User?.Identity?.Name ?? "Unknown",
+            initiator.Name,
             invitedConnectionIds
         );
-    
+
         ActiveInvites[inviteId] = invite;
-        InvitedPlayersResponses[inviteId] = new ConcurrentBag<String>();
-    
+        
+        ConcurrentDictionary<String, Boolean> responseTracker = new(StringComparer.Ordinal);
+        InvitedPlayersResponses[inviteId] = responseTracker;
+
         foreach (String connectionId in invitedConnectionIds)
         {
             await Clients.Client(connectionId).SendAsync("GameInviteReceived", inviteId, invite);
         }
-    
+
         await Clients.Caller.SendAsync("InvitesSent", inviteId);
     }
-    
+
     public async Task RespondToInvite(String tableId, String inviteId, Boolean accept)
     {
         EnsureTableId(tableId);
-    
+
         if (!ActiveInvites.TryGetValue(inviteId, out GameInviteDto? invite) || invite is null)
             throw new HubException("Invite not found or expired.");
-    
+
         if (!invite.InvitedConnectionIds.Contains(Context.ConnectionId))
             throw new HubException("This invite was not sent to you.");
-    
+
         String initiatorConnectionId = invite.InitiatorConnectionId;
-    
-        if (accept)
-        {
-            if (InvitedPlayersResponses.TryGetValue(inviteId, out ConcurrentBag<String>? responses))
-                responses.Add(Context.ConnectionId);
-        }
-    
+
+        if (!WaitingByTable.TryGetValue(tableId, out ConcurrentDictionary<String, WaitingPlayer>? lobby))
+            throw new HubException("Lobby state lost.");
+
+        String respondentName = "Unknown";
+        if (lobby.TryGetValue(Context.ConnectionId, out WaitingPlayer? responder))
+            respondentName = responder.Name;
+
         InviteResponseDto response = new InviteResponseDto(
             Context.ConnectionId,
-            Context.User?.Identity?.Name ?? "Unknown",
+            respondentName,
             accept
         );
-    
+
         await Clients.Client(initiatorConnectionId).SendAsync("InviteResponseReceived", inviteId, response);
-    
-        if (InvitedPlayersResponses.TryGetValue(inviteId, out ConcurrentBag<String>? allResponses) &&
-            allResponses.Count >= invite.InvitedConnectionIds.Count)
+
+        if (InvitedPlayersResponses.TryGetValue(inviteId, out ConcurrentDictionary<String, Boolean>? allResponses))
         {
-            ActiveInvites.TryRemove(inviteId, out _);
-            List<String> acceptedPlayers = allResponses.ToList();
-            await Clients.Client(initiatorConnectionId).SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
-            InvitedPlayersResponses.TryRemove(inviteId, out _);
+            allResponses[Context.ConnectionId] = accept;
+
+            if (allResponses.Count >= invite.InvitedConnectionIds.Count)
+            {
+                ActiveInvites.TryRemove(inviteId, out _);
+
+                List<String> acceptedPlayers = allResponses
+                    .Where(kvp => kvp.Value)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+
+                await Clients.Client(initiatorConnectionId).SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
+                InvitedPlayersResponses.TryRemove(inviteId, out _);
+            }
         }
     }
-    
+
     public async Task CancelInvites(String tableId, String inviteId)
     {
         EnsureTableId(tableId);
-    
+
         if (!ActiveInvites.TryGetValue(inviteId, out GameInviteDto? invite) || invite is null)
             throw new HubException("Invite not found.");
-    
+
         if (invite.InitiatorConnectionId != Context.ConnectionId)
             throw new HubException("Only the initiator can cancel this invite.");
-    
+
         ActiveInvites.TryRemove(inviteId, out _);
         InvitedPlayersResponses.TryRemove(inviteId, out _);
-    
+
         foreach (String connectionId in invite.InvitedConnectionIds)
         {
             await Clients.Client(connectionId).SendAsync("InviteCancelled", inviteId);
         }
     }
-    
+
     #endregion
-    
-    
+
     // Keeps your existing client call pattern usable while you migrate to SubmitAction.
     public async Task SendAction(String tableId, String action)
     {
