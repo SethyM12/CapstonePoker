@@ -8,7 +8,7 @@ namespace MilesHighPoker.Hubs;
 
 public sealed record TableStateDto(
     String TableId,
-    Boolean IsHandRunning,
+    bool IsHandRunning,
     String Street,
     uint Pot,
     uint CurrentBet,
@@ -24,8 +24,8 @@ public sealed record PlayerStateDto(
     short Seat,
     uint Chips,
     uint Bet,
-    Boolean Folded,
-    Boolean IsAllIn,
+    bool Folded,
+    bool IsAllIn,
     int HoleCardCount
 );
 
@@ -43,7 +43,7 @@ public sealed record GameInviteDto(
 public sealed record InviteResponseDto(
     String RespondentConnectionId,
     String RespondentName,
-    Boolean Accepted
+    bool Accepted
 );
 
 public sealed class PokerHub : Hub
@@ -101,7 +101,7 @@ public sealed class PokerHub : Hub
         // Atomic uniqueness check by name within the table lobby.
         lock (lobby)
         {
-            Boolean nameTaken = lobby.Any(kvp =>
+            bool nameTaken = lobby.Any(kvp =>
                 kvp.Key != Context.ConnectionId &&
                 String.Equals(kvp.Value.Name, name, StringComparison.OrdinalIgnoreCase));
 
@@ -163,7 +163,7 @@ public sealed class PokerHub : Hub
 
         uint playerId = (uint)Math.Abs(Context.ConnectionId.GetHashCode());
 
-        Boolean joined = gameManager.TryJoinGame(tableId, displayName, playerId, Context.ConnectionId);
+        bool joined = gameManager.TryJoinGame(tableId, displayName, playerId, Context.ConnectionId);
         if (!joined)
             throw new HubException("Unable to join game. Table may be full or hand may be running.");
 
@@ -187,7 +187,7 @@ public sealed class PokerHub : Hub
     {
         EnsureTableId(tableId);
 
-        Boolean started = gameManager.TryStartHand(tableId, dealerSeat);
+        bool started = gameManager.TryStartHand(tableId, dealerSeat);
         if (!started)
             throw new HubException("Unable to start hand. Need at least 2 players with chips and no active hand.");
 
