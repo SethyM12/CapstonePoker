@@ -4,12 +4,12 @@ namespace MilesHighPoker.Models;
 
 public sealed class Player
 {
-    private readonly List<Card> _cards = [];
+    private readonly List<Card> cards = [];
 
     public String Name { get; private set; }
     public uint Id { get; }
     public String ConnectionId { get; private set; }
-    public IReadOnlyList<Card> Cards => _cards;
+    public IReadOnlyList<Card> Cards => cards;
 
     public uint Chips { get; private set; }
     public short Seat { get; private set; }
@@ -19,6 +19,7 @@ public sealed class Player
 
     public bool IsAllIn => Chips == 0 && !Folded;
     public bool CanAct => !Folded && Chips > 0;
+    public bool IsDealer { get; set; }
 
     public Player(String name, uint id, String connectionId, short seat, uint startingChips)
     {
@@ -26,6 +27,8 @@ public sealed class Player
             throw new ArgumentException("Player name is required.", nameof(name));
         if (String.IsNullOrWhiteSpace(connectionId))
             throw new ArgumentException("ConnectionId is required.", nameof(connectionId));
+        if (startingChips == 0)
+            throw new ArgumentException("Starting chips must be greater than zero.", nameof(startingChips));
 
         Name = name;
         Id = id;
@@ -44,13 +47,16 @@ public sealed class Player
 
     public void ReceiveDealtCard(Card card)
     {
-        // Exactly 2
-        if (_cards.Count >= 2)
+        if (card == null)
+            throw new ArgumentNullException(nameof(card));
+
+        if (cards.Count >= 2)
             throw new InvalidOperationException("Player already has two hole cards.");
 
-        _cards.Add(card);
+        cards.Add(card);
     }
 
+    // Amount is the incremental chips to commit right now (not total street bet).
     public uint PlaceBet(uint amount)
     {
         if (Folded)
@@ -60,36 +66,66 @@ public sealed class Player
         if (amount > Chips)
             throw new InvalidOperationException("Cannot bet more chips than available.");
 
-        Chips -= amount;
-        Bet += amount;
+        checked
+        {
+            Chips -= amount;
+            Bet += amount;
+        }
+
         return amount;
     }
 
+    // Blinds can be short (all-in) if player has fewer chips than required blind.
     public uint PostBlind(uint amount)
     {
-        // For required start of round bets
-        return PlaceBet(amount);
+        if (Folded)
+            throw new InvalidOperationException("Folded player cannot post blind.");
+        if (amount == 0)
+            throw new InvalidOperationException("Blind amount must be greater than zero.");
+
+        uint commit = Math.Min(amount, Chips);
+        if (commit == 0)
+            return 0;
+
+        checked
+        {
+            Chips -= commit;
+            Bet += commit;
+        }
+
+        return commit;
     }
 
+    // Match target total bet for this street, or go all-in if short.
     public uint CallTo(uint targetBet)
     {
+        if (Folded)
+            throw new InvalidOperationException("Folded player cannot call.");
+
         if (targetBet <= Bet)
             return 0;
 
         uint needed = targetBet - Bet;
-        uint commit = Math.Min(needed, Chips); // all-in call
+        uint commit = Math.Min(needed, Chips);
 
         if (commit == 0)
             return 0;
 
-        Chips -= commit;
-        Bet += commit;
+        checked
+        {
+            Chips -= commit;
+            Bet += commit;
+        }
+
         return commit;
     }
 
     public void WinPot(uint amount)
     {
-        Chips += amount;
+        checked
+        {
+            Chips += amount;
+        }
     }
 
     public void Fold()
@@ -101,11 +137,11 @@ public sealed class Player
     {
         Bet = 0;
     }
-    
+
     public void Reset()
     {
         Folded = false;
         Bet = 0;
-        _cards.Clear();
+        cards.Clear();
     }
 }
