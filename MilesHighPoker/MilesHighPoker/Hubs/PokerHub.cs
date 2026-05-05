@@ -157,12 +157,13 @@ public sealed class PokerHub : Hub
     {
         EnsureTableId(tableId);
 
-        displayName = (displayName ?? String.Empty).Trim();
+        displayName = displayName.Trim();
         if (displayName.Length < 2 || displayName.Length > 20)
             throw new HubException("Name must be 2-20 characters.");
 
         uint playerId = (uint)Math.Abs(Context.ConnectionId.GetHashCode());
 
+        Console.WriteLine($"Hub JoinGame request table={tableId} displayName={displayName} conn={Context.ConnectionId}");
         bool joined = gameManager.TryJoinGame(tableId, displayName, playerId, Context.ConnectionId);
         if (!joined)
             throw new HubException("Unable to join game. Table may be full or hand may be running.");
@@ -323,7 +324,20 @@ public sealed class PokerHub : Hub
                     .Select(kvp => kvp.Key)
                     .ToList();
 
-                await Clients.Client(initiatorConnectionId).SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
+                List<String> gamePlayers = acceptedPlayers
+                    .Append(initiatorConnectionId)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+
+                await Clients.Client(initiatorConnectionId)
+                    .SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
+
+                foreach (String playerConnectionId in gamePlayers)
+                {
+                    await Clients.Client(playerConnectionId)
+                        .SendAsync("GameStarting");
+                }
+
                 InvitedPlayersResponses.TryRemove(inviteId, out _);
             }
         }
