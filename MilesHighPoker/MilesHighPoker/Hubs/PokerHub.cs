@@ -8,7 +8,7 @@ namespace MilesHighPoker.Hubs;
 
 public sealed record TableStateDto(
     String TableId,
-    Boolean IsHandRunning,
+    bool IsHandRunning,
     String Street,
     uint Pot,
     uint CurrentBet,
@@ -24,8 +24,8 @@ public sealed record PlayerStateDto(
     short Seat,
     uint Chips,
     uint Bet,
-    Boolean Folded,
-    Boolean IsAllIn,
+    bool Folded,
+    bool IsAllIn,
     int HoleCardCount
 );
 
@@ -43,7 +43,7 @@ public sealed record GameInviteDto(
 public sealed record InviteResponseDto(
     String RespondentConnectionId,
     String RespondentName,
-    Boolean Accepted
+    bool Accepted
 );
 
 public sealed class PokerHub : Hub
@@ -101,7 +101,7 @@ public sealed class PokerHub : Hub
         // Atomic uniqueness check by name within the table lobby.
         lock (lobby)
         {
-            Boolean nameTaken = lobby.Any(kvp =>
+            bool nameTaken = lobby.Any(kvp =>
                 kvp.Key != Context.ConnectionId &&
                 String.Equals(kvp.Value.Name, name, StringComparison.OrdinalIgnoreCase));
 
@@ -157,13 +157,14 @@ public sealed class PokerHub : Hub
     {
         EnsureTableId(tableId);
 
-        displayName = (displayName ?? String.Empty).Trim();
+        displayName = displayName.Trim();
         if (displayName.Length < 2 || displayName.Length > 20)
             throw new HubException("Name must be 2-20 characters.");
 
         uint playerId = (uint)Math.Abs(Context.ConnectionId.GetHashCode());
 
-        Boolean joined = gameManager.TryJoinGame(tableId, displayName, playerId, Context.ConnectionId);
+        Console.WriteLine($"Hub JoinGame request table={tableId} displayName={displayName} conn={Context.ConnectionId}");
+        bool joined = gameManager.TryJoinGame(tableId, displayName, playerId, Context.ConnectionId);
         if (!joined)
             throw new HubException("Unable to join game. Table may be full or hand may be running.");
 
@@ -187,7 +188,7 @@ public sealed class PokerHub : Hub
     {
         EnsureTableId(tableId);
 
-        Boolean started = gameManager.TryStartHand(tableId, dealerSeat);
+        bool started = gameManager.TryStartHand(tableId, dealerSeat);
         if (!started)
             throw new HubException("Unable to start hand. Need at least 2 players with chips and no active hand.");
 
@@ -323,7 +324,20 @@ public sealed class PokerHub : Hub
                     .Select(kvp => kvp.Key)
                     .ToList();
 
-                await Clients.Client(initiatorConnectionId).SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
+                List<String> gamePlayers = acceptedPlayers
+                    .Append(initiatorConnectionId)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+
+                await Clients.Client(initiatorConnectionId)
+                    .SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
+
+                foreach (String playerConnectionId in gamePlayers)
+                {
+                    await Clients.Client(playerConnectionId)
+                        .SendAsync("GameStarting");
+                }
+
                 InvitedPlayersResponses.TryRemove(inviteId, out _);
             }
         }

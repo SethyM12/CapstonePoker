@@ -104,6 +104,12 @@ public partial class Lobby : IAsyncDisposable
                 _ = InvokeAsync(StateHasChanged);
             }
         });
+        
+        HubConnection.On("GameStarting", async () =>
+        {
+            await LeaveLobbyIfJoinedAsync();
+            NavigationManager.NavigateTo($"/Game?tableId={TableId}&name={Uri.EscapeDataString(PendingName.Trim())}");
+        });
 
         HubConnection.Reconnected += async connectionId =>
         {
@@ -227,7 +233,7 @@ public partial class Lobby : IAsyncDisposable
         {
             await HubConnection.InvokeAsync("RespondToInvite", TableId, CurrentIncomingInvite.InviteId, true);
             CurrentIncomingInvite = null;
-            await LeaveLobbyAndNavigateToGameAsync();
+            NameError = "Invite accepted. Waiting for the host to start the game.";
         }
         catch (Exception ex)
         {
@@ -262,29 +268,15 @@ public partial class Lobby : IAsyncDisposable
             return;
         }
 
-        List<String> playerIds = new();
+        if (String.IsNullOrWhiteSpace(PendingName))
+        {
+            NameError = "You must choose a display name first.";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
 
-        if (!String.IsNullOrWhiteSpace(CurrentConnectionId))
-            playerIds.Add(CurrentConnectionId);
-
-        playerIds.AddRange(
-            acceptedConnectionIds.Where(id => !String.IsNullOrWhiteSpace(id))
-        );
-
-        playerIds = playerIds
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-
-        String playerList = String.Join(",", playerIds);
-
-        await LeaveLobbyIfJoinedAsync();
-        NavigationManager.NavigateTo($"/Game?players={playerList}");
-    }
-
-    private async Task EnterGame()
-    {
-        await LeaveLobbyIfJoinedAsync();
-        NavigationManager.NavigateTo("/Game");
+        NameError = "All invites resolved. Waiting for the game to start.";
+        await InvokeAsync(StateHasChanged);
     }
 
     private void CloseInviteModal()

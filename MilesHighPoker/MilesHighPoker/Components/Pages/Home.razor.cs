@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR.Client;
 using MilesHighPoker.GameLogic;
+using MilesHighPoker.Hubs;
+using MilesHighPoker.Models;
 
 namespace MilesHighPoker.Components.Pages;
 
@@ -9,55 +11,306 @@ public partial class Home : IAsyncDisposable
     [Inject]
     private NavigationManager NavigationManager { get; set; } = null!;
 
-    private HubConnection? _hubConnection;
-    private bool _hubStarted;
-    private const String TableId = "table-1";
+    [SupplyParameterFromQuery(Name = "tableId")]
+    public String? TableIdQuery { get; set; }
 
-    private static readonly String CardBackPath = "/images/cards/card_back.png";
+    [SupplyParameterFromQuery(Name = "name")]
+    public String? DisplayNameQuery { get; set; }
 
-    private Card?[] CommunityCards { get; set; } = new Card[5];
+    private HubConnection? hubConnection;
+    private bool hubStarted;
 
-    private Card?[] PlayerHand { get; set; } = new Card[2];
+    private UiTableState uiState = new();
+    private UiSeatState?[] SeatSlots { get; set; } = new UiSeatState?[5];
 
-    private uint Pot { get; set; } = 0;
+    private String StatusMessage { get; set; } = "Connecting...";
+
+    // Use TableIdQuery if provided; otherwise redirect back
+    private String ResolvedTableId =>
+        String.IsNullOrWhiteSpace(TableIdQuery) ? String.Empty : TableIdQuery.Trim();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || _hubStarted)
+        if (!firstRender || hubStarted)
             return;
 
-        _hubConnection = new HubConnectionBuilder()
+        // Redirect if no tableId provided
+        if (String.IsNullOrWhiteSpace(ResolvedTableId))
+        {
+            NavigationManager.NavigateTo("/");
+            return;
+        }
+
+        hubConnection = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/poker"))
             .WithAutomaticReconnect()
             .Build();
 
-        _hubConnection.On<String>("PlayerJoined", connectionId =>
+        hubConnection.On<String>("PlayerJoined", connectionId =>
         {
             Console.WriteLine($"Player joined: {connectionId}");
-        });
-        
-        _hubConnection.On<String, String>("PlayerActionReceived", (connectionId, action) =>
-        {
-            Console.WriteLine($"{connectionId} did {action}");
+
+            _ = InvokeAsync(async () =>
+            {
+                await RefreshTableStateAsync();
+                StateHasChanged();
+            });
         });
 
-        _hubConnection.Reconnected += async _ =>
+        hubConnection.On<String, String, String>("PlayerActionReceived", (connectionId, action, result) =>
         {
-            Console.WriteLine("Reconnected; rejoining table...");
-            if (_hubConnection is not null)
-                await _hubConnection.InvokeAsync("JoinTable", TableId);
+            Console.WriteLine($"{connectionId} did {action}: {result}");
+        });
+
+        hubConnection.On("HandStarted", () =>
+        {
+            StatusMessage = "Hand started.";
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<TableStateDto?>("TableStateUpdated", state =>
+        {
+            ApplyTableState(state);
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.Reconnected += async _ =>
+        {
+            StatusMessage = "Reconnected.";
+
+            if (hubConnection is not null)
+            {
+                await JoinTableAsync();
+                await RefreshTableStateAsync();
+            }
         };
 
-        _hubConnection.Closed += error =>
+        hubConnection.Closed += error =>
         {
-            Console.WriteLine($"Connection closed: {error?.Message}");
+            StatusMessage = error is null
+                ? "Disconnected."
+                : $"Connection closed: {error.Message}";
+
+            _ = InvokeAsync(StateHasChanged);
             return Task.CompletedTask;
         };
 
-        await _hubConnection.StartAsync();
-        await _hubConnection.InvokeAsync("JoinTable", TableId);
+        await hubConnection.StartAsync();
 
-        _hubStarted = true;
+        StatusMessage = "Connected.";
+        await JoinTableAsync();
+        await RefreshTableStateAsync();
+
+        hubStarted = true;
+    }
+
+    private async Task JoinTableAsync()
+    {
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+            return;
+
+        if (!String.IsNullOrWhiteSpace(DisplayNameQuery))
+        {
+            String displayName = DisplayNameQuery.Trim();
+
+            try
+            {
+                await hubConnection.InvokeAsync("JoinGame", ResolvedTableId, displayName);
+                StatusMessage = $"Joined game as {displayName}.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = ex.Message;
+            }
+        }
+    }
+
+    private async Task RefreshTableStateAsync()
+    {
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+            return;
+
+        TableStateDto? state =
+            await hubConnection.InvokeAsync<TableStateDto?>("GetTableState", ResolvedTableId);
+
+        ApplyTableState(state);
+    }
+
+    private void ApplyTableState(TableStateDto? state)
+    {
+        if (state is null)
+        {
+            uiState = new UiTableState
+            {
+                TableId = ResolvedTableId
+            };
+
+            SeatSlots = new UiSeatState?[5];
+            return;
+        }
+
+        short localSeat = GetLocalSeat(state);
+        SeatSlots = BuildSeatSlots(state, localSeat);
+
+        uiState = new UiTableState
+        {
+            TableId = state.TableId,
+            IsHandRunning = state.IsHandRunning,
+            Street = ParseStreet(state.Street),
+            Pot = state.Pot,
+            CurrentBet = state.CurrentBet,
+            DealerSeat = state.DealerSeat,
+            CurrentTurnSeat = state.CurrentTurnSeat,
+            LocalSeat = localSeat,
+            CommunityCards = state.CommunityCards.Select(ParseCard).ToArray(),
+            LocalHoleCards = new Card?[2],
+            Seats = SeatSlots.Where(seat => seat is not null).Select(seat => seat!).ToList()
+        };
+    }
+
+    private short GetLocalSeat(TableStateDto state)
+    {
+        if (hubConnection?.ConnectionId is null)
+            return -1;
+
+        PlayerStateDto? localPlayer = state.Players.FirstOrDefault(player =>
+            String.Equals(player.ConnectionId, hubConnection.ConnectionId, StringComparison.Ordinal));
+
+        return localPlayer?.Seat ?? -1;
+    }
+
+    private static HandStreet ParseStreet(String street)
+    {
+        if (Enum.TryParse(street, ignoreCase: true, out HandStreet parsedStreet))
+            return parsedStreet;
+
+        return HandStreet.PreDeal;
+    }
+
+    private static Card? ParseCard(CardDto? dto)
+    {
+        if (dto is null)
+            return null;
+
+        if (!Enum.TryParse(dto.Rank, ignoreCase: true, out CardRank rank))
+            return null;
+
+        if (!Enum.TryParse(dto.Suit, ignoreCase: true, out CardSuit suit))
+            return null;
+
+        return new Card
+        {
+            Rank = rank,
+            Suit = suit
+        };
+    }
+    
+private UiSeatState?[] BuildSeatSlots(TableStateDto state, short localSeat)
+    {
+        UiSeatState?[] slots = new UiSeatState?[Table.MAX_PLAYERS];
+        List<PlayerStateDto> players = state.Players.OrderBy(player => player.Seat).ToList();
+        
+        int OffsetToSlotIndex(int offset)
+        {
+            return offset switch
+            {
+                0 => 4, // local/current
+                1 => 3, // bottom-right (next clockwise)
+                2 => 1, // top-right
+                3 => 0, // top-left
+                4 => 2, // bottom-left
+                _ => throw new ArgumentOutOfRangeException(nameof(offset))
+            };
+        }
+    
+        if (localSeat >= 0)
+        {
+            PlayerStateDto? localPlayer = players.FirstOrDefault(p => p.Seat == localSeat);
+            if (localPlayer is not null)
+            {
+                slots[OffsetToSlotIndex(0)] = BuildSeatState(localPlayer, true);
+            }
+    
+            foreach (PlayerStateDto other in players.Where(p => p.Seat != localSeat))
+            {
+                int offset = GetRelativeSeatDistance(other.Seat, localSeat); // 1..(MAX_PLAYERS-1)
+                int slotIndex = OffsetToSlotIndex(offset);
+                slots[slotIndex] = BuildSeatState(other, false);
+            }
+        }
+        else
+        {
+            // If we don't know the local seat (spectator), just show players in seat order
+            for (int i = 0; i < players.Count && i < Table.MAX_PLAYERS; i++)
+            {
+                slots[i] = BuildSeatState(players[i], false);
+            }
+        }
+    
+        return slots;
+    }
+
+    private static int GetRelativeSeatDistance(short seat, short originSeat)
+    {
+        int distance = seat - originSeat;
+        if (distance < 0)
+        {
+            distance += Table.MAX_PLAYERS;
+        }
+
+        return distance;
+    }
+
+    private UiSeatState BuildSeatState(PlayerStateDto player, bool isLocalPlayer)
+    {
+        return new UiSeatState
+        {
+            Seat = player.Seat,
+            ConnectionId = player.ConnectionId,
+            Name = player.Name,
+            Chips = player.Chips,
+            Bet = player.Bet,
+            Folded = player.Folded,
+            IsAllIn = player.IsAllIn,
+            IsLocalPlayer = isLocalPlayer,
+            HoleCards = new Card?[2]
+        };
+    }
+
+    private async Task SubmitActionAsync(String action, uint? totalBet = null)
+    {
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+            return;
+
+        try
+        {
+            await hubConnection.InvokeAsync("SubmitAction", ResolvedTableId, action, totalBet);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = ex.Message;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private Task FoldAsync()
+    {
+        return SubmitActionAsync(nameof(PlayerAction.Fold));
+    }
+
+    private Task CheckAsync()
+    {
+        return SubmitActionAsync(nameof(PlayerAction.Check));
+    }
+
+    private Task CallAsync()
+    {
+        return SubmitActionAsync(nameof(PlayerAction.Call));
+    }
+
+    private Task RaiseAsync(uint totalBet)
+    {
+        return SubmitActionAsync(nameof(PlayerAction.Raise), totalBet);
     }
 
     private static String ToCardFile(Card card)
@@ -89,14 +342,14 @@ public partial class Home : IAsyncDisposable
             _ => throw new ArgumentOutOfRangeException()
         };
 
-        return $"images/cards/{rank}_of_{suit}.png";
+        return $"/images/cards/{rank}_of_{suit}.png";
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_hubConnection is not null)
+        if (hubConnection is not null)
         {
-            await _hubConnection.DisposeAsync();
+            await hubConnection.DisposeAsync();
         }
     }
 }

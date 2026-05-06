@@ -8,6 +8,7 @@ public sealed class GameManager
 {
     private readonly TableRegistry tableRegistry;
     private readonly ConcurrentDictionary<String, TurnEngine> activeEngines = new();
+    private readonly ConcurrentDictionary<String, object> tableJoinLocks = new();
 
     public GameManager(TableRegistry tableRegistry)
     {
@@ -21,6 +22,13 @@ public sealed class GameManager
 
         return tableRegistry.GetOrCreateTable(tableId);
     }
+    
+    public String CreateNewTableId()
+    {
+        String tableId = Guid.NewGuid().ToString("N");
+        tableRegistry.GetOrCreateTable(tableId);
+        return tableId;
+    }
 
     public bool TryJoinGame(String tableId, String name, uint playerId, String connectionId)
     {
@@ -32,20 +40,28 @@ public sealed class GameManager
             throw new ArgumentException("Connection id is required.", nameof(connectionId));
 
         Table table = GetOrCreateTable(tableId);
+        object joinLock = tableJoinLocks.GetOrAdd(tableId, _ => new object());
 
-        if (table.IsHandRunning)
-            return false;
+        lock (joinLock)
+        {
+            if (table.IsHandRunning)
+                return false;
 
-        if (!table.CanJoinTable)
-            return false;
+            if (table.Players.Any(p => String.Equals(p.ConnectionId, connectionId, StringComparison.Ordinal)))
+                return true;
 
-        if (table.Players.Any(p => String.Equals(p.ConnectionId, connectionId, StringComparison.Ordinal)))
-            return true;
+            if (!table.CanJoinTable)
+                return false;
 
-        short seat = (short)GetNextAvailableSeat(table);
-        Player player = new Player(name, playerId, connectionId, seat, Table.STARTING_MONEY);
+            short seat = (short)GetNextAvailableSeat(table);
+            Player player = new Player(name, playerId, connectionId, seat, Table.STARTING_MONEY);
 
-        return table.TryAddPlayer(player);
+            bool added = table.TryAddPlayer(player);
+
+            Console.WriteLine($"Join result table={tableId} name={name} conn={connectionId} seat={seat} added={added} playersAfter={table.Players.Count}");
+
+            return added;
+        }
     }
 
     public bool TryLeaveGame(String tableId, String connectionId)
@@ -66,6 +82,7 @@ public sealed class GameManager
         {
             tableRegistry.RemoveTable(tableId);
             activeEngines.TryRemove(tableId, out _);
+            tableJoinLocks.TryRemove(tableId, out _);
         }
 
         return true;
