@@ -17,8 +17,6 @@ public partial class Home : IAsyncDisposable
     [SupplyParameterFromQuery(Name = "name")]
     public String? DisplayNameQuery { get; set; }
 
-    private const String DefaultTableId = "table-1";
-
     private HubConnection? hubConnection;
     private bool hubStarted;
 
@@ -27,13 +25,21 @@ public partial class Home : IAsyncDisposable
 
     private String StatusMessage { get; set; } = "Connecting...";
 
+    // Use TableIdQuery if provided; otherwise redirect back
     private String ResolvedTableId =>
-        String.IsNullOrWhiteSpace(TableIdQuery) ? DefaultTableId : TableIdQuery.Trim();
+        String.IsNullOrWhiteSpace(TableIdQuery) ? String.Empty : TableIdQuery.Trim();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || hubStarted)
             return;
+
+        // Redirect if no tableId provided
+        if (String.IsNullOrWhiteSpace(ResolvedTableId))
+        {
+            NavigationManager.NavigateTo("/");
+            return;
+        }
 
         hubConnection = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/poker"))
@@ -102,8 +108,6 @@ public partial class Home : IAsyncDisposable
     {
         if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
             return;
-
-        await hubConnection.InvokeAsync("JoinTable", ResolvedTableId);
 
         if (!String.IsNullOrWhiteSpace(DisplayNameQuery))
         {
@@ -200,38 +204,49 @@ public partial class Home : IAsyncDisposable
             Suit = suit
         };
     }
-
-    private UiSeatState?[] BuildSeatSlots(TableStateDto state, short localSeat)
+    
+private UiSeatState?[] BuildSeatSlots(TableStateDto state, short localSeat)
     {
-        UiSeatState?[] slots = new UiSeatState?[5];
+        UiSeatState?[] slots = new UiSeatState?[Table.MAX_PLAYERS];
         List<PlayerStateDto> players = state.Players.OrderBy(player => player.Seat).ToList();
-
+        
+        int OffsetToSlotIndex(int offset)
+        {
+            return offset switch
+            {
+                0 => 4, // local/current
+                1 => 3, // bottom-right (next clockwise)
+                2 => 1, // top-right
+                3 => 0, // top-left
+                4 => 2, // bottom-left
+                _ => throw new ArgumentOutOfRangeException(nameof(offset))
+            };
+        }
+    
         if (localSeat >= 0)
         {
-            PlayerStateDto? localPlayer = players.FirstOrDefault(player => player.Seat == localSeat);
+            PlayerStateDto? localPlayer = players.FirstOrDefault(p => p.Seat == localSeat);
             if (localPlayer is not null)
             {
-                slots[4] = BuildSeatState(localPlayer, true);
+                slots[OffsetToSlotIndex(0)] = BuildSeatState(localPlayer, true);
             }
-
-            List<PlayerStateDto> otherPlayers = players
-                .Where(player => player.Seat != localSeat)
-                .OrderBy(player => GetRelativeSeatDistance(player.Seat, localSeat))
-                .ToList();
-
-            for (int i = 0; i < otherPlayers.Count && i < 4; i++)
+    
+            foreach (PlayerStateDto other in players.Where(p => p.Seat != localSeat))
             {
-                slots[i] = BuildSeatState(otherPlayers[i], false);
+                int offset = GetRelativeSeatDistance(other.Seat, localSeat); // 1..(MAX_PLAYERS-1)
+                int slotIndex = OffsetToSlotIndex(offset);
+                slots[slotIndex] = BuildSeatState(other, false);
             }
         }
         else
         {
-            for (int i = 0; i < players.Count && i < 5; i++)
+            // If we don't know the local seat (spectator), just show players in seat order
+            for (int i = 0; i < players.Count && i < Table.MAX_PLAYERS; i++)
             {
                 slots[i] = BuildSeatState(players[i], false);
             }
         }
-
+    
         return slots;
     }
 

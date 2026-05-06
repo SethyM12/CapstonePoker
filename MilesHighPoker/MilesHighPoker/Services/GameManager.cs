@@ -22,6 +22,13 @@ public sealed class GameManager
 
         return tableRegistry.GetOrCreateTable(tableId);
     }
+    
+    public String CreateNewTableId()
+    {
+        String tableId = Guid.NewGuid().ToString("N");
+        tableRegistry.GetOrCreateTable(tableId);
+        return tableId;
+    }
 
     public bool TryJoinGame(String tableId, String name, uint playerId, String connectionId)
     {
