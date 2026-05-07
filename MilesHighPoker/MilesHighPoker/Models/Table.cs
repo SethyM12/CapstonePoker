@@ -16,6 +16,7 @@ public class Table
 
     public List<WaitingPlayer> WaitingPlayers { get; }
     public List<Player> Players { get; }
+    public short DealerSeat { get; set; }
     public bool IsHandRunning { get; private set; }
     public GameState? CurrentGameState { get; private set; }
 

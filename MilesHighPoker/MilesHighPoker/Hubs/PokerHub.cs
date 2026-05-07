@@ -63,6 +63,9 @@ public sealed class PokerHub : Hub
 
     private static readonly ConcurrentDictionary<String, ConcurrentDictionary<String, Boolean>> InvitedPlayersResponses
         = new(StringComparer.Ordinal);
+    
+    private static readonly ConcurrentDictionary<String, Object> InviteLocks
+        = new(StringComparer.Ordinal);
 
     public PokerHub(GameManager gameManager)
     {
@@ -87,7 +90,7 @@ public sealed class PokerHub : Hub
     {
         EnsureTableId(tableId);
 
-        name = (name ?? String.Empty).Trim();
+        name = name.Trim();
         if (name.Length < 2 || name.Length > 20)
             throw new HubException("Name must be 2-20 characters.");
 
@@ -288,13 +291,11 @@ public sealed class PokerHub : Hub
     {
         EnsureTableId(tableId);
 
-        if (!ActiveInvites.TryGetValue(inviteId, out GameInviteDto? invite) || invite is null)
+        if (!ActiveInvites.TryGetValue(inviteId, out GameInviteDto? invite))
             throw new HubException("Invite not found or expired.");
 
         if (!invite.InvitedConnectionIds.Contains(Context.ConnectionId))
             throw new HubException("This invite was not sent to you.");
-
-        String initiatorConnectionId = invite.InitiatorConnectionId;
 
         if (!WaitingByTable.TryGetValue(tableId, out ConcurrentDictionary<String, WaitingPlayer>? lobby))
             throw new HubException("Lobby state lost.");
@@ -309,37 +310,62 @@ public sealed class PokerHub : Hub
             accept
         );
 
-        await Clients.Client(initiatorConnectionId).SendAsync("InviteResponseReceived", inviteId, response);
+        await Clients.Client(invite.InitiatorConnectionId).SendAsync("InviteResponseReceived", inviteId, response);
 
-        if (InvitedPlayersResponses.TryGetValue(inviteId, out ConcurrentDictionary<String, Boolean>? allResponses))
+        Boolean shouldStartGame = false;
+        String? newTableId = null;
+        List<String> acceptedPlayers = new();
+
+        Object inviteLock = InviteLocks.GetOrAdd(inviteId, _ => new Object());
+
+        lock (inviteLock)
         {
+            if (!InvitedPlayersResponses.TryGetValue(inviteId, out ConcurrentDictionary<String, Boolean>? allResponses))
+                return;
+
             allResponses[Context.ConnectionId] = accept;
 
-            if (allResponses.Count >= invite.InvitedConnectionIds.Count)
+            if (allResponses.Count == invite.InvitedConnectionIds.Count)
             {
-                ActiveInvites.TryRemove(inviteId, out _);
-
-                List<String> acceptedPlayers = allResponses
+                acceptedPlayers = allResponses
                     .Where(kvp => kvp.Value)
                     .Select(kvp => kvp.Key)
                     .ToList();
 
-                List<String> gamePlayers = acceptedPlayers
-                    .Append(initiatorConnectionId)
-                    .Distinct(StringComparer.Ordinal)
-                    .ToList();
-
-                await Clients.Client(initiatorConnectionId)
-                    .SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
-
-                foreach (String playerConnectionId in gamePlayers)
-                {
-                    await Clients.Client(playerConnectionId)
-                        .SendAsync("GameStarting");
-                }
-
+                // Clean up invite tracking first so the invite cannot resolve twice.
+                ActiveInvites.TryRemove(inviteId, out _);
                 InvitedPlayersResponses.TryRemove(inviteId, out _);
+                InviteLocks.TryRemove(inviteId, out _);
+
+                if (acceptedPlayers.Count > 0)
+                {
+                    shouldStartGame = true;
+                    newTableId = gameManager.CreateNewTableId();
+                }
             }
+        }
+
+        if (!shouldStartGame)
+        {
+            // If everyone declined, the initiator can be told nothing started.
+            await Clients.Client(invite.InitiatorConnectionId)
+                .SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
+
+            return;
+        }
+
+        List<String> gamePlayers = acceptedPlayers
+            .Append(invite.InitiatorConnectionId)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        await Clients.Client(invite.InitiatorConnectionId)
+            .SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
+
+        foreach (String playerConnectionId in gamePlayers)
+        {
+            await Clients.Client(playerConnectionId)
+                .SendAsync("GameStarting", newTableId);
         }
     }
 
@@ -347,7 +373,7 @@ public sealed class PokerHub : Hub
     {
         EnsureTableId(tableId);
 
-        if (!ActiveInvites.TryGetValue(inviteId, out GameInviteDto? invite) || invite is null)
+        if (!ActiveInvites.TryGetValue(inviteId, out GameInviteDto? invite))
             throw new HubException("Invite not found.");
 
         if (invite.InitiatorConnectionId != Context.ConnectionId)
@@ -367,7 +393,7 @@ public sealed class PokerHub : Hub
     // Keeps your existing client call pattern usable while you migrate to SubmitAction.
     public async Task SendAction(String tableId, String action)
     {
-        await SubmitAction(tableId, action, null);
+        await SubmitAction(tableId, action);
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
