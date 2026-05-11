@@ -24,10 +24,27 @@ public partial class Home : IAsyncDisposable
     private UiSeatState?[] SeatSlots { get; set; } = new UiSeatState?[5];
 
     private String StatusMessage { get; set; } = "Connecting...";
+    private bool isStartingHand;
+    private Card?[] localHoleCards = new Card?[2];
 
     // Use TableIdQuery if provided; otherwise redirect back
     private String ResolvedTableId =>
         String.IsNullOrWhiteSpace(TableIdQuery) ? String.Empty : TableIdQuery.Trim();
+
+    private bool CanStartHand =>
+        !uiState.IsHandRunning &&
+        uiState.LocalSeat >= 0 &&
+        uiState.LocalSeat == uiState.DealerSeat &&
+        SeatSlots.Count(s => s is not null) >= 2;
+
+    private bool IsLocalPlayerTurn =>
+        uiState.IsHandRunning &&
+        uiState.LocalSeat >= 0 &&
+        uiState.LocalSeat == uiState.CurrentTurnSeat;
+
+    private bool IsLocalPlayerDealer =>
+        uiState.LocalSeat >= 0 &&
+        uiState.LocalSeat == uiState.DealerSeat;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -64,7 +81,15 @@ public partial class Home : IAsyncDisposable
 
         hubConnection.On("HandStarted", () =>
         {
-            StatusMessage = "Hand started.";
+            StatusMessage = "Hand started. Hole cards dealt.";
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        // Handle per-client private hole cards
+        hubConnection.On<List<CardDto>>("YourHoleCards", dtoList =>
+        {
+            localHoleCards = dtoList.Select(ParseCard).ToArray();
+            StatusMessage = "Hole cards received.";
             _ = InvokeAsync(StateHasChanged);
         });
 
@@ -149,6 +174,9 @@ public partial class Home : IAsyncDisposable
             return;
         }
 
+        // preserve whatever local hole cards we have in uiState before we overwrite
+        Card?[] previousLocalHoleCards = localHoleCards;
+
         short localSeat = GetLocalSeat(state);
         SeatSlots = BuildSeatSlots(state, localSeat);
 
@@ -163,9 +191,25 @@ public partial class Home : IAsyncDisposable
             CurrentTurnSeat = state.CurrentTurnSeat,
             LocalSeat = localSeat,
             CommunityCards = state.CommunityCards.Select(ParseCard).ToArray(),
-            LocalHoleCards = new Card?[2],
+            // prefer previously-received local hole cards if any; otherwise GetLocalHoleCards fallback
+            LocalHoleCards = GetLocalHoleCards(state, localSeat, previousLocalHoleCards),
             Seats = SeatSlots.Where(seat => seat is not null).Select(seat => seat!).ToList()
         };
+    }
+
+    private Card?[] GetLocalHoleCards(TableStateDto state, short localSeat, Card?[]? previousLocalHoleCards = null)
+    {
+        if (previousLocalHoleCards is not null && previousLocalHoleCards.Any(card => card is not null))
+            return previousLocalHoleCards;
+
+        if (localSeat < 0)
+            return new Card?[2];
+
+        int holeCardCount = state.Players
+            .FirstOrDefault(player => player.Seat == localSeat)?
+            .HoleCardCount ?? 2;
+
+        return new Card?[holeCardCount];
     }
 
     private short GetLocalSeat(TableStateDto state)
@@ -205,7 +249,7 @@ public partial class Home : IAsyncDisposable
         };
     }
     
-private UiSeatState?[] BuildSeatSlots(TableStateDto state, short localSeat)
+    private UiSeatState?[] BuildSeatSlots(TableStateDto state, short localSeat)
     {
         UiSeatState?[] slots = new UiSeatState?[Table.MAX_PLAYERS];
         List<PlayerStateDto> players = state.Players.OrderBy(player => player.Seat).ToList();
@@ -277,9 +321,49 @@ private UiSeatState?[] BuildSeatSlots(TableStateDto state, short localSeat)
         };
     }
 
+    private async Task StartHandAsync()
+    {
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+        {
+            StatusMessage = "Not connected to server.";
+            return;
+        }
+
+        if (!CanStartHand)
+        {
+            StatusMessage = "Cannot start hand right now.";
+            return;
+        }
+
+        isStartingHand = true;
+        StatusMessage = "Dealing...";
+    
+        Console.WriteLine("Client: About to call StartHand hub method");
+
+        try
+        {
+            await hubConnection.InvokeAsync("StartHand", ResolvedTableId, (short)-1);
+            Console.WriteLine("Client: StartHand hub call succeeded");
+            await RefreshTableStateAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Client: StartHand hub call failed: {ex.Message}");
+            StatusMessage = $"Error starting hand: {ex.Message}";
+        }
+        finally
+        {
+            isStartingHand = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private async Task SubmitActionAsync(String action, uint? totalBet = null)
     {
         if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+            return;
+
+        if (!IsLocalPlayerTurn)
             return;
 
         try

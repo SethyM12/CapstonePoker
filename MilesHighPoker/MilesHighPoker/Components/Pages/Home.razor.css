@@ -91,7 +91,9 @@
 
 .player-cards {
     display: flex;
-    gap: clamp(0.35rem, 0.8vw, 0.9rem);
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
 }
 
 .player-card-slot {
@@ -354,4 +356,80 @@
     .instruction-section ol {
         line-height: 1.5;
     }
+}
+
+/* Dealer indicator */
+.player-seat.dealer {
+    border: 2px solid #ffd700;
+    border-radius: 8px;
+    background-color: rgba(255, 215, 0, 0.08);
+}
+
+.dealer-badge {
+    display: inline-block;
+    background-color: #ffd700;
+    color: #000;
+    font-weight: 900;
+    font-size: 0.75rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.35rem;
+}
+
+/* Current turn indicator */
+.player-seat.current-turn {
+    border: 2px solid #00ff00;
+    border-radius: 8px;
+    background-color: rgba(0, 255, 0, 0.1);
+    box-shadow: 0 0 12px rgba(0, 255, 0, 0.3);
+}
+
+/* Folded player styling */
+.player-seat.folded {
+    opacity: 0.6;
+}
+
+.player-seat.folded .player-name {
+    text-decoration: line-through;
+    color: #999;
+}
+
+/* Bet display */
+.player-bet {
+    color: #ffeb3b;
+    font-size: clamp(0.8rem, 1vw, 1rem);
+    font-weight: 700;
+    margin-top: 0.25rem;
+}
+
+/* Status indicators */
+.player-status {
+    font-size: clamp(0.75rem, 0.95vw, 0.95rem);
+    font-weight: 700;
+    margin-top: 0.2rem;
+}
+
+.all-in-text {
+    color: #ff4444;
+    text-shadow: 0 0 4px rgba(255, 68, 68, 0.5);
+    animation: pulse-all-in 1.5s infinite;
+}
+
+@keyframes pulse-all-in {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* Waiting for turn text */
+#current-player-actions .text-muted {
+    font-size: clamp(0.9rem, 1.1vw, 1.1rem);
+    color: #b0b0b0;
 }

@@ -9,6 +9,7 @@ public sealed class GameManager
     private readonly TableRegistry tableRegistry;
     private readonly ConcurrentDictionary<String, TurnEngine> activeEngines = new();
     private readonly ConcurrentDictionary<String, object> tableJoinLocks = new();
+    private readonly ConcurrentDictionary<String, short> lastDealerSeatByTable = new();
 
     public GameManager(TableRegistry tableRegistry)
     {
@@ -83,12 +84,13 @@ public sealed class GameManager
             tableRegistry.RemoveTable(tableId);
             activeEngines.TryRemove(tableId, out _);
             tableJoinLocks.TryRemove(tableId, out _);
+            lastDealerSeatByTable.TryRemove(tableId, out _);
         }
 
         return true;
     }
 
-    public bool TryStartHand(String tableId, short dealerPosition = 0)
+    public bool TryStartHand(String tableId, short dealerPosition = -1)
     {
         if (String.IsNullOrWhiteSpace(tableId))
             throw new ArgumentException("Table id is required.", nameof(tableId));
@@ -101,11 +103,10 @@ public sealed class GameManager
         if (!table.CanStartHand)
             return false;
 
-        if (!table.Players.Any(p => p.Seat == dealerPosition && p.Chips > 0))
-            throw new InvalidOperationException($"Dealer seat {dealerPosition} is not occupied by an active player.");
+        short resolvedDealerSeat = ResolveDealerSeatForNextHand(tableId, table);
 
         GameState gameState = new GameState();
-        table.StartHand(gameState, dealerPosition);
+        table.StartHand(gameState, resolvedDealerSeat);
 
         TurnEngine turnEngine = new TurnEngine(table, gameState);
         activeEngines[tableId] = turnEngine;
@@ -148,6 +149,23 @@ public sealed class GameManager
         }
 
         return tableRegistry.TryGetTable(tableId, out table);
+    }
+
+    private short DecideFirstDealer(Table table)
+    {
+        if (table == null)
+            throw new ArgumentNullException(nameof(table));
+
+        List<short> eligibleSeats = table.Players
+            .Where(player => player.Chips > 0)
+            .Select(player => player.Seat)
+            .ToList();
+
+        if (eligibleSeats.Count < 2)
+            throw new InvalidOperationException("At least 2 active players are required to choose a dealer.");
+
+        int randomIndex = Random.Shared.Next(eligibleSeats.Count);
+        return eligibleSeats[randomIndex];
     }
 
     private void AdvanceStreetOrResolveShowdown(Table table, TurnEngine turnEngine)
@@ -235,5 +253,32 @@ public sealed class GameManager
         }
 
         throw new InvalidOperationException("No eligible player can act.");
+    }
+    
+    private short ResolveDealerSeatForNextHand(String tableId, Table table)
+    {
+        if (!lastDealerSeatByTable.TryGetValue(tableId, out short previousDealerSeat))
+        {
+            short firstDealerSeat = DecideFirstDealer(table);
+            lastDealerSeatByTable[tableId] = firstDealerSeat;
+            return firstDealerSeat;
+        }
+    
+        short nextDealerSeat = GetNextOccupiedSeatClockwise(table, previousDealerSeat);
+        lastDealerSeatByTable[tableId] = nextDealerSeat;
+        return nextDealerSeat;
+    }
+    
+    private static short GetNextOccupiedSeatClockwise(Table table, short fromSeat)
+    {
+        for (int i = 1; i <= Table.MAX_PLAYERS; i++)
+        {
+            short candidate = (short)((fromSeat + i) % Table.MAX_PLAYERS);
+    
+            if (table.Players.Any(player => player.Seat == candidate && player.Chips > 0))
+                return candidate;
+        }
+    
+        throw new InvalidOperationException("No occupied seat with chips found.");
     }
 }

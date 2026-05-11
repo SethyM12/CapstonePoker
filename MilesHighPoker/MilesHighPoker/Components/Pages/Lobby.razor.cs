@@ -105,10 +105,10 @@ public partial class Lobby : IAsyncDisposable
             }
         });
         
-        HubConnection.On("GameStarting", async () =>
+        HubConnection.On<String>("GameStarting", async tableId =>
         {
             await LeaveLobbyIfJoinedAsync();
-            NavigationManager.NavigateTo($"/Game?tableId={TableId}&name={Uri.EscapeDataString(PendingName.Trim())}");
+            NavigationManager.NavigateTo($"/Game?tableId={Uri.EscapeDataString(tableId)}&name={Uri.EscapeDataString(PendingName.Trim())}");
         });
 
         HubConnection.Reconnected += async connectionId =>
