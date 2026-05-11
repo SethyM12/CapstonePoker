@@ -30,7 +30,7 @@ public sealed record PlayerStateDto(
 );
 
 public sealed record CardDto(
-    String Rank, 
+    String Rank,
     String Suit
 );
 
@@ -187,13 +187,29 @@ public sealed class PokerHub : Hub
         await BroadcastTableState(tableId);
     }
 
-    public async Task StartHand(String tableId, short dealerSeat = 0)
+    public async Task StartHand(String tableId, short dealerSeat = -1)
     {
         EnsureTableId(tableId);
 
         bool started = gameManager.TryStartHand(tableId, dealerSeat);
         if (!started)
             throw new HubException("Unable to start hand. Need at least 2 players with chips and no active hand.");
+
+        // --- NEW: send each player's private hole cards only to that player ---
+        if (gameManager.TryGetTable(tableId, out Table? table) && table != null)
+        {
+            // table.Players now have their cards populated by the server-side deal
+            foreach (Player player in table.Players)
+            {
+                // build card DTOs (could be 0..2 depending on state)
+                List<CardDto> holeDtos = player.Cards
+                    .Select(c => new CardDto(c.Rank.ToString(), c.Suit.ToString()))
+                    .ToList();
+
+                // send only to that player's connection
+                await Clients.Client(player.ConnectionId).SendAsync("YourHoleCards", holeDtos);
+            }
+        }
 
         await Clients.Group(tableId).SendAsync("HandStarted");
         await BroadcastTableState(tableId);
