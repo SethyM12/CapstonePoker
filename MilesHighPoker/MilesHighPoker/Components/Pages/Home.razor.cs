@@ -25,6 +25,7 @@ public partial class Home : IAsyncDisposable
 
     private String StatusMessage { get; set; } = "Connecting...";
     private bool isStartingHand;
+    private Card?[] localHoleCards = new Card?[2];
 
     // Use TableIdQuery if provided; otherwise redirect back
     private String ResolvedTableId =>
@@ -87,8 +88,7 @@ public partial class Home : IAsyncDisposable
         // Handle per-client private hole cards
         hubConnection.On<List<CardDto>>("YourHoleCards", dtoList =>
         {
-            // Convert DTOs to Card objects and set local hole cards
-            uiState.LocalHoleCards = dtoList.Select(ParseCard).ToArray();
+            localHoleCards = dtoList.Select(ParseCard).ToArray();
             StatusMessage = "Hole cards received.";
             _ = InvokeAsync(StateHasChanged);
         });
@@ -175,7 +175,7 @@ public partial class Home : IAsyncDisposable
         }
 
         // preserve whatever local hole cards we have in uiState before we overwrite
-        Card?[] previousLocalHoleCards = uiState.LocalHoleCards ?? new Card?[2];
+        Card?[] previousLocalHoleCards = localHoleCards;
 
         short localSeat = GetLocalSeat(state);
         SeatSlots = BuildSeatSlots(state, localSeat);
@@ -192,21 +192,24 @@ public partial class Home : IAsyncDisposable
             LocalSeat = localSeat,
             CommunityCards = state.CommunityCards.Select(ParseCard).ToArray(),
             // prefer previously-received local hole cards if any; otherwise GetLocalHoleCards fallback
-            LocalHoleCards = (previousLocalHoleCards.Any(c => c != null))
-                ? previousLocalHoleCards
-                : GetLocalHoleCards(state, localSeat),
+            LocalHoleCards = GetLocalHoleCards(state, localSeat, previousLocalHoleCards),
             Seats = SeatSlots.Where(seat => seat is not null).Select(seat => seat!).ToList()
         };
     }
 
-    private Card?[] GetLocalHoleCards(TableStateDto state, short localSeat)
+    private Card?[] GetLocalHoleCards(TableStateDto state, short localSeat, Card?[]? previousLocalHoleCards = null)
     {
+        if (previousLocalHoleCards is not null && previousLocalHoleCards.Any(card => card is not null))
+            return previousLocalHoleCards;
+
         if (localSeat < 0)
             return new Card?[2];
 
-        // If we already have local hole cards (received via hub push), keep them via ApplyTableState's previousLocalHoleCards
-        // TableStateDto purposely does not include private hole cards, so fall back to empty placeholders.
-        return new Card?[2];
+        int holeCardCount = state.Players
+            .FirstOrDefault(player => player.Seat == localSeat)?
+            .HoleCardCount ?? 2;
+
+        return new Card?[holeCardCount];
     }
 
     private short GetLocalSeat(TableStateDto state)
