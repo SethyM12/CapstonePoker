@@ -13,6 +13,8 @@ public sealed class UiTableState
     public uint Pot { get; set; }
 
     public uint CurrentBet { get; set; }
+    
+    public uint MinimumRaise {  get; set; }
 
     public short DealerSeat { get; set; }
 

@@ -103,7 +103,23 @@ public sealed class GameManager
         if (!table.CanStartHand)
             return false;
 
-        short resolvedDealerSeat = ResolveDealerSeatForNextHand(tableId, table);
+        // Respect explicit dealerPosition if passed (>= 0), otherwise resolve using
+        // the existing rotation/random logic.
+        short resolvedDealerSeat;
+        if (dealerPosition >= 0)
+        {
+            // Validate the requested seat is occupied and active
+            if (!table.Players.Any(p => p.Seat == dealerPosition && p.Chips > 0))
+                return false; // invalid dealer request
+
+            resolvedDealerSeat = dealerPosition;
+            // record it as last dealer so the next hand rotates from here
+            lastDealerSeatByTable[tableId] = resolvedDealerSeat;
+        }
+        else
+        {
+            resolvedDealerSeat = ResolveDealerSeatForNextHand(tableId, table);
+        }
 
         GameState gameState = new GameState();
         table.StartHand(gameState, resolvedDealerSeat);

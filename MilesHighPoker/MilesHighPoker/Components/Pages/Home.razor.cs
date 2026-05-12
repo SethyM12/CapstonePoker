@@ -26,6 +26,22 @@ public partial class Home : IAsyncDisposable
     private String StatusMessage { get; set; } = "Connecting...";
     private bool isStartingHand;
     private Card?[] localHoleCards = new Card?[2];
+    
+    private string raiseInput = ""; // bound to the numeric input
+    private uint MinTotalBet => uiState.CurrentBet + uiState.MinimumRaise;
+    
+    private uint MaxTotalBet
+    {
+        get
+        {
+            // local seat is at SeatSlots[4] (your code keeps that mapping)
+            UiSeatState? local = SeatSlots.Length > 4 ? SeatSlots[4] : null;
+            if (local == null)
+                return MinTotalBet;
+            // player's maximum total bet for the street is their existing bet + chips (all-in)
+            return local.Bet + local.Chips;
+        }
+    }
 
     // Use TableIdQuery if provided; otherwise redirect back
     private String ResolvedTableId =>
@@ -187,6 +203,7 @@ public partial class Home : IAsyncDisposable
             Street = ParseStreet(state.Street),
             Pot = state.Pot,
             CurrentBet = state.CurrentBet,
+            MinimumRaise = state.MinimumRaise,
             DealerSeat = state.DealerSeat,
             CurrentTurnSeat = state.CurrentTurnSeat,
             LocalSeat = localSeat,
@@ -395,6 +412,43 @@ public partial class Home : IAsyncDisposable
     private Task RaiseAsync(uint totalBet)
     {
         return SubmitActionAsync(nameof(PlayerAction.Raise), totalBet);
+    }
+    
+private async Task RaiseClickedAsync()
+    {
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+        {
+            StatusMessage = "Not connected to server.";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+        
+        if (!IsLocalPlayerTurn)
+        {
+            StatusMessage = "Not your turn.";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+    
+        if (!uint.TryParse(raiseInput, out uint requestedTotalBet))
+        {
+            StatusMessage = "Enter a numeric raise total (e.g. 150).";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+    
+        // enforce minimum total bet: CurrentBet + MinimumRaise
+        uint minTotal = MinTotalBet;
+        if (requestedTotalBet < minTotal)
+            requestedTotalBet = minTotal;
+    
+        // enforce maximum total bet (player's bet + chips)
+        uint maxTotal = MaxTotalBet;
+        if (requestedTotalBet > maxTotal)
+            requestedTotalBet = maxTotal;
+    
+        // call existing RaiseAsync that expects the player's total bet for the street
+        await RaiseAsync(requestedTotalBet);
     }
 
     private static String ToCardFile(Card card)

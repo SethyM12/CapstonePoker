@@ -84,7 +84,7 @@
                     @topLeftSeat.Name
                     @if (topLeftSeat.Seat == uiState.DealerSeat)
                     {
-                        <span class="dealer-badge">  (Dealer)</span>
+                        <span class="dealer-badge">D</span>
                     }
                 </div>
                 <div id="top-left-player-money" class="player-money">$@topLeftSeat.Chips</div>
@@ -131,7 +131,7 @@
                     @topRightSeat.Name
                     @if (topRightSeat.Seat == uiState.DealerSeat)
                     {
-                        <span class="dealer-badge">  (Dealer)</span>
+                        <span class="dealer-badge">D</span>
                     }
                 </div>
                 <div id="top-right-player-money" class="player-money">$@topRightSeat.Chips</div>
@@ -178,7 +178,7 @@
                     @bottomLeftSeat.Name
                     @if (bottomLeftSeat.Seat == uiState.DealerSeat)
                     {
-                        <span class="dealer-badge">  (Dealer)</span>
+                        <span class="dealer-badge">D</span>
                     }
                 </div>
                 <div id="bottom-left-player-money" class="player-money">$@bottomLeftSeat.Chips</div>
@@ -225,7 +225,7 @@
                     @bottomRightSeat.Name
                     @if (bottomRightSeat.Seat == uiState.DealerSeat)
                     {
-                        <span class="dealer-badge">  (Dealer)</span>
+                        <span class="dealer-badge">D</span>
                     }
                 </div>
                 <div id="bottom-right-player-money" class="player-money">$@bottomRightSeat.Chips</div>
@@ -265,7 +265,7 @@
                     @currentSeat.Name
                     @if (currentSeat.Seat == uiState.DealerSeat)
                     {
-                        <span class="dealer-badge">  (Dealer)</span>
+                        <span class="dealer-badge">D</span>
                     }
                     (YOU)
                 </div>
@@ -299,9 +299,27 @@
                 <button class="btn btn-info" @onclick="CallAsync">
                     <span class="action-label">Call</span>
                 </button>
-                <button class="btn btn-primary" @onclick="@(() => RaiseAsync(100))">
-                    <span class="action-label">Raise</span>
-                </button>
+                <div class="d-inline-flex align-items-center" style="gap:.4rem; min-width:220px;">
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           style="width:120px;"
+                           @bind="raiseInput"
+                           min="@MinTotalBet"
+                           max="@MaxTotalBet"
+                           placeholder="@($"Min: {MinTotalBet}")" />
+
+                    <button class="btn btn-primary"
+                            @onclick="RaiseClickedAsync">
+                        <span class="action-label">Raise</span>
+                    </button>
+                </div>
+
+                @if (uiState.MinimumRaise > 0)
+                {
+                    <div class="small text-muted mt-1">
+                        Min raise increment: $@uiState.MinimumRaise · Min total bet: $@MinTotalBet · Max (all-in): $@MaxTotalBet
+                    </div>
+                }
             }
             else if (uiState.IsHandRunning && currentSeat?.Folded == false && currentSeat?.IsAllIn == false)
             {
