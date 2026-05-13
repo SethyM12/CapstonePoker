@@ -120,7 +120,8 @@ public sealed class GameManager
         {
             resolvedDealerSeat = ResolveDealerSeatForNextHand(tableId, table);
         }
-
+        
+        table.DealerSeat = resolvedDealerSeat;
         GameState gameState = new GameState();
         table.StartHand(gameState, resolvedDealerSeat);
 
@@ -237,6 +238,11 @@ public sealed class GameManager
     private void EndHand(String tableId)
     {
         activeEngines.TryRemove(tableId, out _);
+        
+        if (tableRegistry.TryGetTable(tableId, out Table? table) && table != null)
+        {
+            table.DealerSeat = PeekNextDealerSeat(tableId, table);
+        }
     }
 
     private Table GetTableOrThrow(String tableId)
@@ -296,5 +302,17 @@ public sealed class GameManager
         }
     
         throw new InvalidOperationException("No occupied seat with chips found.");
+    }
+    
+    private short PeekNextDealerSeat(String tableId, Table table)
+    {
+        // If we don't have a last dealer recorded, choose a first dealer randomly (don't mutate)
+        if (!lastDealerSeatByTable.TryGetValue(tableId, out short previousDealer))
+        {
+            return DecideFirstDealer(table);
+        }
+    
+        // Next occupied seat clockwise from the previous dealer
+        return GetNextOccupiedSeatClockwise(table, previousDealer);
     }
 }

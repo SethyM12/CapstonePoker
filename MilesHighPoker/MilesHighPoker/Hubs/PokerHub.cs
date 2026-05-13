@@ -495,7 +495,7 @@ public sealed class PokerHub : Hub
             state?.Pot ?? 0,
             state?.CurrentBet ?? 0,
             state?.MinimumRaise ?? 0,
-            state?.DealerPosition ?? 0,
+            state?.DealerPosition ?? table.DealerSeat,
             state?.CurrentPlayerPosition ?? 0,
             players,
             communityCards

@@ -276,10 +276,10 @@ public partial class Home : IAsyncDisposable
             return offset switch
             {
                 0 => 4, // local/current
-                1 => 3, // bottom-right (next clockwise)
-                2 => 1, // top-right
-                3 => 0, // top-left
-                4 => 2, // bottom-left
+                1 => 2, // (next clockwise)
+                2 => 0,
+                3 => 1,
+                4 => 3,
                 _ => throw new ArgumentOutOfRangeException(nameof(offset))
             };
         }
