@@ -37,7 +37,7 @@ public sealed class TurnEngine
 
         Player actor = GetPlayerBySeat(actingSeat);
 
-        if (!actor.CanAct && action != PlayerAction.Fold)
+        if (!actor.CanAct)
             throw new InvalidOperationException("Player cannot act.");
 
         switch (action)
@@ -85,6 +85,17 @@ public sealed class TurnEngine
             default:
                 throw new ArgumentOutOfRangeException(nameof(action), action, "Unknown action.");
         }
+        
+        Console.WriteLine("---- TurnEngine.ApplyAction DEBUG ----");
+        Console.WriteLine($"Actor seat: {actor.Seat}, action: {action}, actor.Bet: {actor.Bet}, actor.Chips: {actor.Chips}, actor.IsAllIn: {actor.IsAllIn}");
+        Console.WriteLine($"GameState: CurrentBet={gameState.CurrentBet}, MinimumRaise={gameState.MinimumRaise}, CurrentPlayerPosition={gameState.CurrentPlayerPosition}, Street={gameState.CurrentStreet}");
+        Console.WriteLine("Players:");
+        foreach (var p in table.Players.OrderBy(p => p.Seat))
+        {
+            Console.WriteLine($" seat={p.Seat} name={p.Name} chips={p.Chips} bet={p.Bet} folded={p.Folded} canAct={p.CanAct} isAllIn={p.IsAllIn}");
+        }
+        Console.WriteLine("Acted this street: " + String.Join(',', actedThisStreet));
+        Console.WriteLine("-------------------------------------");
 
         actedThisStreet.Add(actor.Seat);
 
@@ -119,6 +130,8 @@ public sealed class TurnEngine
 
     private short GetNextActingSeat(short fromSeat)
     {
+        Console.WriteLine($"GetNextActingSeat from {fromSeat} searching for next CanAct=true and not folded...");
+        
         for (int i = 1; i <= Table.MAX_PLAYERS; i++)
         {
             short candidate = (short)((fromSeat + i) % Table.MAX_PLAYERS);

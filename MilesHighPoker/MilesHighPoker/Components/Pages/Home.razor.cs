@@ -61,6 +61,15 @@ public partial class Home : IAsyncDisposable
     private bool IsLocalPlayerDealer =>
         uiState.LocalSeat >= 0 &&
         uiState.LocalSeat == uiState.DealerSeat;
+    
+    private bool CanDealerAdvanceStreet =>
+        uiState.IsHandRunning &&
+        uiState.AwaitingDealerAdvance &&
+        IsLocalPlayerDealer;
+
+    private bool CanPlayerAct =>
+        IsLocalPlayerTurn &&
+        !uiState.AwaitingDealerAdvance;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -208,10 +217,36 @@ public partial class Home : IAsyncDisposable
             CurrentTurnSeat = state.CurrentTurnSeat,
             LocalSeat = localSeat,
             CommunityCards = state.CommunityCards.Select(ParseCard).ToArray(),
-            // prefer previously-received local hole cards if any; otherwise GetLocalHoleCards fallback
             LocalHoleCards = GetLocalHoleCards(state, localSeat, previousLocalHoleCards),
-            Seats = SeatSlots.Where(seat => seat is not null).Select(seat => seat!).ToList()
+            Seats = SeatSlots.Where(seat => seat is not null).Select(seat => seat!).ToList(),
+            AwaitingDealerAdvance = state.AwaitingDealerAdvance  // ADD THIS
         };
+    }
+    
+    private async Task AdvanceStreetAsync()
+    {
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+        {
+            StatusMessage = "Not connected to server.";
+            return;
+        }
+
+        if (!CanDealerAdvanceStreet)
+        {
+            StatusMessage = "Cannot advance street right now.";
+            return;
+        }
+
+        try
+        {
+            await hubConnection.InvokeAsync("AdvanceStreet", ResolvedTableId);
+            await RefreshTableStateAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error advancing street: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private Card?[] GetLocalHoleCards(TableStateDto state, short localSeat, Card?[]? previousLocalHoleCards = null)
@@ -380,7 +415,7 @@ public partial class Home : IAsyncDisposable
         if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
             return;
 
-        if (!IsLocalPlayerTurn)
+        if (!CanPlayerAct)
             return;
 
         try

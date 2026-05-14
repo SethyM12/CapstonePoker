@@ -16,7 +16,8 @@ public sealed record TableStateDto(
     short DealerSeat,
     short CurrentTurnSeat,
     List<PlayerStateDto> Players,
-    List<CardDto?> CommunityCards
+    List<CardDto?> CommunityCards,
+    bool AwaitingDealerAdvance
 );
 
 public sealed record PlayerStateDto(
@@ -251,6 +252,24 @@ public sealed class PokerHub : Hub
         EnsureTableId(tableId);
 
         gameManager.TryLeaveGame(tableId, Context.ConnectionId);
+        await BroadcastTableState(tableId);
+    }
+    
+    public async Task AdvanceStreet(String tableId)
+    {
+        EnsureTableId(tableId);
+
+        if (!gameManager.TryGetTable(tableId, out Table? table) || table == null)
+            throw new HubException("Table not found.");
+
+        Player? actor = table.GetPlayer(Context.ConnectionId);
+        if (actor == null)
+            throw new HubException("You are not seated in this game.");
+
+        bool advanced = gameManager.TryAdvanceStreet(tableId, actor.Seat);
+        if (!advanced)
+            throw new HubException("Could not advance street.");
+
         await BroadcastTableState(tableId);
     }
     
@@ -498,7 +517,8 @@ public sealed class PokerHub : Hub
             state?.DealerPosition ?? table.DealerSeat,
             state?.CurrentPlayerPosition ?? 0,
             players,
-            communityCards
+            communityCards,
+            state?.AwaitingDealerAdvance ?? false
         );
     }
 }

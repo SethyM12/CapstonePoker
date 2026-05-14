@@ -128,21 +128,18 @@ public class Table
     {
         EnsureRunningHand();
         CurrentGameState!.RevealFlop(GetActivePlayersForStreet());
-        CurrentGameState.SetCurrentTurn(GetPostFlopFirstToActSeat());
     }
 
     public void RevealTurn()
     {
         EnsureRunningHand();
         CurrentGameState!.RevealTurn(GetActivePlayersForStreet());
-        CurrentGameState.SetCurrentTurn(GetPostFlopFirstToActSeat());
     }
 
     public void RevealRiver()
     {
         EnsureRunningHand();
         CurrentGameState!.RevealRiver(GetActivePlayersForStreet());
-        CurrentGameState.SetCurrentTurn(GetPostFlopFirstToActSeat());
     }
 
     public void EndHand()

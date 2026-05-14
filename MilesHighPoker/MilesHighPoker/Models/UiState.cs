@@ -27,6 +27,8 @@ public sealed class UiTableState
     public Card?[] LocalHoleCards { get; set; } = new Card?[2];
 
     public List<UiSeatState> Seats { get; set; } = [];
+    
+    public bool AwaitingDealerAdvance { get; set; }
 }
 
 public sealed class UiSeatState

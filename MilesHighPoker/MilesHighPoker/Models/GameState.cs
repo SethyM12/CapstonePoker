@@ -21,6 +21,7 @@ public class GameState
 
     public uint HandNumber { get; private set; }
     public bool IsHandOver => CurrentStreet == HandStreet.Showdown;
+    public bool AwaitingDealerAdvance { get; private set; }
 
     public GameState()
     {
@@ -37,6 +38,7 @@ public class GameState
         LastAggressorPosition = null;
 
         HandNumber = 0;
+        AwaitingDealerAdvance = false;
     }
 
     public void StartHand(short dealerPosition, uint bigBlind)
@@ -56,6 +58,7 @@ public class GameState
         DealerPosition = dealerPosition;
         CurrentPlayerPosition = dealerPosition; // Turn order finalized in Table flow step
         LastAggressorPosition = null;
+        AwaitingDealerAdvance = false;
     }
     
     public void ApplyPostedBlinds(uint bigBlindPosted, short bigBlindSeat)
@@ -102,7 +105,6 @@ public class GameState
     {
         return game.GetHandScore(playerCards);
     }
-    
 
     public void AddToPot(uint amount)
     {
@@ -139,6 +141,11 @@ public class GameState
 
         // Check/call style action: no new aggressor
         CurrentBet = newBet;
+    }
+
+    public void SetAwaitingDealerAdvance(bool awaitingDealerAdvance)
+    {
+        AwaitingDealerAdvance = awaitingDealerAdvance;
     }
 
     private void ResetBettingForNewStreet(List<Player> players)

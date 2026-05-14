@@ -146,7 +146,7 @@ public sealed class GameManager
 
         if (result == TurnStepResult.BettingRoundComplete)
         {
-            AdvanceStreetOrResolveShowdown(table, turnEngine);
+            table.CurrentGameState!.SetAwaitingDealerAdvance(true);
         }
         else if (result == TurnStepResult.HandComplete)
         {
@@ -184,39 +184,80 @@ public sealed class GameManager
         int randomIndex = Random.Shared.Next(eligibleSeats.Count);
         return eligibleSeats[randomIndex];
     }
+    
+    public bool TryAdvanceStreet(String tableId, short requestingSeat)
+    {
+        if (String.IsNullOrWhiteSpace(tableId))
+            throw new ArgumentException("Table id is required.", nameof(tableId));
 
-    private void AdvanceStreetOrResolveShowdown(Table table, TurnEngine turnEngine)
+        Table table = GetTableOrThrow(tableId);
+        GameState gameState = table.CurrentGameState
+            ?? throw new InvalidOperationException("No game state available.");
+
+        // Validate dealer
+        if (requestingSeat != gameState.DealerPosition)
+            throw new InvalidOperationException("Only the dealer can advance the street.");
+
+        // Validate state
+        if (!gameState.AwaitingDealerAdvance)
+            throw new InvalidOperationException("Hand is not awaiting dealer advance.");
+
+        if (!activeEngines.TryGetValue(tableId, out TurnEngine? turnEngine))
+            throw new InvalidOperationException("No active hand exists for this table.");
+
+        // Clear the flag
+        gameState.SetAwaitingDealerAdvance(false);
+
+        // Advance one step only
+        AdvanceStreetOneStep(table, turnEngine);
+
+        return true;
+    }
+
+    private void AdvanceStreetOneStep(Table table, TurnEngine turnEngine)
     {
         GameState gameState = table.CurrentGameState
             ?? throw new InvalidOperationException("No game state is available.");
-
-        short firstToActSeat = GetFirstCanActSeatAfter(table, gameState.DealerPosition);
 
         switch (gameState.CurrentStreet)
         {
             case HandStreet.PreFlop:
                 table.RevealFlop();
-                turnEngine.BeginStreet(firstToActSeat);
                 break;
 
             case HandStreet.Flop:
                 table.RevealTurn();
-                turnEngine.BeginStreet(firstToActSeat);
                 break;
 
             case HandStreet.Turn:
                 table.RevealRiver();
-                turnEngine.BeginStreet(firstToActSeat);
                 break;
 
             case HandStreet.River:
                 table.ResolveShowdownAndPayout();
                 EndHand(table.TableId);
-                break;
+                return;
 
             default:
-                throw new InvalidOperationException("Street progression is not allowed from the current state.");
+                throw new InvalidOperationException("Street progression not allowed from current state.");
         }
+
+        // After reveal, check if we can start betting
+        if (CountPlayersWhoCanAct(table) >= 2)
+        {
+            short firstToActSeat = GetFirstCanActSeatAfter(table, gameState.DealerPosition);
+            turnEngine.BeginStreet(firstToActSeat);
+        }
+        else
+        {
+            // Not enough players to bet; mark as waiting for dealer to continue
+            gameState.SetAwaitingDealerAdvance(true);
+        }
+    }
+    
+    private int CountPlayersWhoCanAct(Table table)
+    {
+        return table.Players.Count(p => !p.Folded && p.CanAct);
     }
 
     private void ResolveFoldWin(Table table)
@@ -270,7 +311,7 @@ public sealed class GameManager
         {
             short candidate = (short)((fromSeat + i) % Table.MAX_PLAYERS);
 
-            if (table.Players.Any(p => p.Seat == candidate && p.CanAct))
+            if (table.Players.Any(p => p.Seat == candidate && !p.Folded && p.CanAct))
                 return candidate;
         }
 
@@ -290,7 +331,6 @@ public sealed class GameManager
         lastDealerSeatByTable[tableId] = nextDealerSeat;
         return nextDealerSeat;
     }
-    
     private static short GetNextOccupiedSeatClockwise(Table table, short fromSeat)
     {
         for (int i = 1; i <= Table.MAX_PLAYERS; i++)
@@ -303,7 +343,6 @@ public sealed class GameManager
     
         throw new InvalidOperationException("No occupied seat with chips found.");
     }
-    
     private short PeekNextDealerSeat(String tableId, Table table)
     {
         // If we don't have a last dealer recorded, choose a first dealer randomly (don't mutate)
