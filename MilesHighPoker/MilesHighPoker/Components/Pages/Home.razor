@@ -48,6 +48,9 @@
             UiSeatState? currentSeat = SeatSlots[4];
             const int HOLE_CARD_COUNT = 2;
             String cardBackPath = "/images/cards/card_back.png";
+            
+            uint localBet = currentSeat?.Bet ?? 0;
+            uint callAmount = uiState.CurrentBet > localBet ? uiState.CurrentBet - localBet : 0;
         }
 
         <div id="top-left-player"
@@ -318,12 +321,18 @@
                 <button class="btn btn-danger" @onclick="FoldAsync">
                     <span class="action-label">Fold</span>
                 </button>
-                <button class="btn btn-warning" @onclick="CheckAsync">
-                    <span class="action-label">Check</span>
-                </button>
-                <button class="btn btn-info" @onclick="CallAsync">
-                    <span class="action-label">Call</span>
-                </button>
+                @if (uiState.CurrentBet == 0 || localBet >= uiState.CurrentBet)
+                {
+                    <button class="btn btn-warning" @onclick="CheckAsync">
+                        <span class="action-label">Check</span>
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-info" @onclick="CallAsync">
+                        <span class="action-label">Call $@callAmount</span>
+                    </button>
+                }
                 <div class="d-inline-flex align-items-center" style="gap:.4rem; min-width:220px;">
                     <input type="number"
                            class="form-control form-control-sm"
@@ -347,7 +356,7 @@
                     </div>
                 }
             }
-            else if (uiState.IsHandRunning && currentSeat?.Folded == false && currentSeat?.IsAllIn == false && !uiState.AwaitingDealerAdvance)
+            else if (uiState.IsHandRunning && currentSeat is { Folded: false, IsAllIn: false } && !uiState.AwaitingDealerAdvance)
             {
                 <p class="text-muted">Waiting for your turn...</p>
             }

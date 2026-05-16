@@ -320,17 +320,27 @@ public sealed class GameManager
     
     private short ResolveDealerSeatForNextHand(String tableId, Table table)
     {
-        if (!lastDealerSeatByTable.TryGetValue(tableId, out short previousDealerSeat))
+        // If we already have a recorded last dealer, rotate from there as before.
+        if (lastDealerSeatByTable.TryGetValue(tableId, out short previousDealerSeat))
         {
-            short firstDealerSeat = DecideFirstDealer(table);
-            lastDealerSeatByTable[tableId] = firstDealerSeat;
-            return firstDealerSeat;
+            short nextDealerSeat = GetNextOccupiedSeatClockwise(table, previousDealerSeat);
+            lastDealerSeatByTable[tableId] = nextDealerSeat;
+            return nextDealerSeat;
         }
-    
-        short nextDealerSeat = GetNextOccupiedSeatClockwise(table, previousDealerSeat);
-        lastDealerSeatByTable[tableId] = nextDealerSeat;
-        return nextDealerSeat;
+        
+        short candidate = table.DealerSeat;
+        if (table.Players.Any(p => p.Seat == candidate && p.Chips > 0))
+        {
+            lastDealerSeatByTable[tableId] = candidate;
+            return candidate;
+        }
+
+        // Otherwise choose a random first dealer as before.
+        short firstDealerSeat = DecideFirstDealer(table);
+        lastDealerSeatByTable[tableId] = firstDealerSeat;
+        return firstDealerSeat;
     }
+    
     private static short GetNextOccupiedSeatClockwise(Table table, short fromSeat)
     {
         for (int i = 1; i <= Table.MAX_PLAYERS; i++)
@@ -343,6 +353,7 @@ public sealed class GameManager
     
         throw new InvalidOperationException("No occupied seat with chips found.");
     }
+    
     private short PeekNextDealerSeat(String tableId, Table table)
     {
         // If we don't have a last dealer recorded, choose a first dealer randomly (don't mutate)
