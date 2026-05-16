@@ -217,7 +217,7 @@ public sealed class GameManager
     private void AdvanceStreetOneStep(Table table, TurnEngine turnEngine)
     {
         GameState gameState = table.CurrentGameState
-            ?? throw new InvalidOperationException("No game state is available.");
+                              ?? throw new InvalidOperationException("No game state is available.");
 
         switch (gameState.CurrentStreet)
         {
@@ -234,15 +234,19 @@ public sealed class GameManager
                 break;
 
             case HandStreet.River:
+                table.RevealShowdown();
+                gameState.SetAwaitingDealerAdvance(true);
+                return;
+
+            case HandStreet.Showdown:
+                // Second press: finalize showdown, perform payouts and end the hand.
                 table.ResolveShowdownAndPayout();
-                EndHand(table.TableId);
                 return;
 
             default:
                 throw new InvalidOperationException("Street progression not allowed from current state.");
         }
-
-        // After reveal, check if we can start betting
+        
         if (CountPlayersWhoCanAct(table) >= 2)
         {
             short firstToActSeat = GetFirstCanActSeatAfter(table, gameState.DealerPosition);

@@ -28,7 +28,9 @@ public sealed record PlayerStateDto(
     uint Bet,
     bool Folded,
     bool IsAllIn,
-    int HoleCardCount
+    int HoleCardCount,
+    List<CardDto?> HoleCards,
+    bool IsWinner
 );
 
 public sealed record CardDto(
@@ -491,16 +493,28 @@ public sealed class PokerHub : Hub
 
         List<PlayerStateDto> players = table.Players
             .OrderBy(p => p.Seat)
-            .Select(p => new PlayerStateDto(
-                p.ConnectionId,
-                p.Name,
-                p.Seat,
-                p.Chips,
-                p.Bet,
-                p.Folded,
-                p.IsAllIn,
-                p.Cards.Count
-            ))
+            .Select(p =>
+            {
+                bool revealHoleCards = state != null && state.CurrentStreet == HandStreet.Showdown;
+                List<CardDto?> holeCards = revealHoleCards
+                    ? p.Cards.Select(c => c == null ? null : new CardDto(c.Rank.ToString(), c.Suit.ToString())).ToList()
+                    : new List<CardDto?>();
+
+                bool isWinner = table.LastShowdownWinners != null && table.LastShowdownWinners.Contains(p.Seat);
+
+                return new PlayerStateDto(
+                    p.ConnectionId,
+                    p.Name,
+                    p.Seat,
+                    p.Chips,
+                    p.Bet,
+                    p.Folded,
+                    p.IsAllIn,
+                    p.Cards.Count,
+                    holeCards,
+                    isWinner
+                );
+            })
             .ToList();
 
         List<CardDto?> communityCards = (state?.CommunityCards ?? new Card[5])

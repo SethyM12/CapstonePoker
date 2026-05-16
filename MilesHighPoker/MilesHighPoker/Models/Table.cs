@@ -19,6 +19,9 @@ public class Table
     public short DealerSeat { get; set; }
     public bool IsHandRunning { get; private set; }
     public GameState? CurrentGameState { get; private set; }
+    public bool CanJoinTable => Players.Count < MAX_PLAYERS;
+    public bool CanStartHand => !IsHandRunning && Players.Count(p => p.Chips > 0) >= 2;
+    public List<short>? LastShowdownWinners { get; private set; } = null;
 
     public Table(String tableId)
     {
@@ -31,9 +34,6 @@ public class Table
         IsHandRunning = false;
         CurrentGameState = null;
     }
-
-    public bool CanJoinTable => Players.Count < MAX_PLAYERS;
-    public bool CanStartHand => !IsHandRunning && Players.Count(p => p.Chips > 0) >= 2;
 
     public bool AddWaitingPlayer(WaitingPlayer waitingPlayer)
     {
@@ -141,6 +141,52 @@ public class Table
         EnsureRunningHand();
         CurrentGameState!.RevealRiver(GetActivePlayersForStreet());
     }
+    
+    public void RevealShowdown()
+    {
+        EnsureRunningHand();
+        
+        if (CurrentGameState!.CurrentStreet != HandStreet.River)
+            throw new InvalidOperationException("Showdown can only be revealed after the river.");
+
+        // Collect contenders
+        List<Player> contenders = Players
+            .Where(p => !p.Folded && p.Cards.Count == 2)
+            .ToList();
+
+        if (contenders.Count == 0)
+            throw new InvalidOperationException("No eligible contenders at showdown.");
+
+        if (contenders.Count == 1)
+        {
+            // Single contender - mark them as winner for the reveal but don't pay out yet
+            LastShowdownWinners = [contenders[0].Seat];
+            // Ensure the GameState knows we are at Showdown (GetHandScore sets CurrentStreet to Showdown)
+            CurrentGameState.GetHandScore(contenders[0].Cards.ToArray());
+            return;
+        }
+
+        // Score hands (GetHandScore will set current street to Showdown)
+        var scored = contenders
+            .Select(p => new ScoredPlayer(p, CurrentGameState.GetHandScore(p.Cards.ToArray())))
+            .ToList();
+
+        // Find best
+        ScoredPlayer best = scored[0];
+        for (int i = 1; i < scored.Count; i++)
+        {
+            if (PokerGame.CompareHandScores(scored[i].Score, best.Score) > 0)
+                best = scored[i];
+        }
+
+        // All equal-to-best players are winners
+        List<Player> winners = scored
+            .Where(s => PokerGame.CompareHandScores(s.Score, best.Score) == 0)
+            .Select(s => s.Player)
+            .ToList();
+
+        LastShowdownWinners = winners.Select(w => w.Seat).ToList();
+    }
 
     public void EndHand()
     {
@@ -177,6 +223,7 @@ public class Table
             throw new InvalidOperationException("Showdown can only be resolved at river/showdown.");
         }
 
+        // Build contenders
         List<Player> contenders = Players
             .Where(p => !p.Folded && p.Cards.Count == 2)
             .ToList();
@@ -184,29 +231,39 @@ public class Table
         if (contenders.Count == 0)
             throw new InvalidOperationException("No eligible contenders at showdown.");
 
-        if (contenders.Count == 1)
+        // If RevealShowdown has already computed winners, use them, otherwise compute now
+        List<Player> winners;
+        if (LastShowdownWinners != null)
         {
-            contenders[0].WinPot(CurrentGameState.Pot);
-            EndHand();
-            return contenders;
+            winners = Players.Where(p => LastShowdownWinners.Contains(p.Seat)).ToList();
+        }
+        else
+        {
+            if (contenders.Count == 1)
+            {
+                contenders[0].WinPot(CurrentGameState.Pot);
+                EndHand();
+                return contenders;
+            }
+
+            var scored = contenders
+                .Select(p => new ScoredPlayer(p, CurrentGameState.GetHandScore(p.Cards.ToArray())))
+                .ToList();
+
+            ScoredPlayer best = scored[0];
+            for (int i = 1; i < scored.Count; i++)
+            {
+                if (PokerGame.CompareHandScores(scored[i].Score, best.Score) > 0)
+                    best = scored[i];
+            }
+
+            winners = scored
+                .Where(s => PokerGame.CompareHandScores(s.Score, best.Score) == 0)
+                .Select(s => s.Player)
+                .ToList();
         }
 
-        List<ScoredPlayer> scored = contenders
-            .Select(p => new ScoredPlayer(p, CurrentGameState.GetHandScore(p.Cards.ToArray())))
-            .ToList();
-
-        ScoredPlayer best = scored[0];
-        for (int i = 1; i < scored.Count; i++)
-        {
-            if (PokerGame.CompareHandScores(scored[i].Score, best.Score) > 0)
-                best = scored[i];
-        }
-
-        List<Player> winners = scored
-            .Where(s => PokerGame.CompareHandScores(s.Score, best.Score) == 0)
-            .Select(s => s.Player)
-            .ToList();
-
+        // Perform payouts using winners list
         uint pot = CurrentGameState.Pot;
         uint baseShare = pot / (uint)winners.Count;
         uint oddChip = pot % (uint)winners.Count;
@@ -223,8 +280,12 @@ public class Table
             oddChipOrder[0].WinPot(oddChip);
         }
 
+        // Clean up last-showdown info then end the hand.
+        var result = winners.AsReadOnly();
+        LastShowdownWinners = null;
         EndHand();
-        return winners;
+
+        return result;
     }
 
     private void EnsureRunningHand()

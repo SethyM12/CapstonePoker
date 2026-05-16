@@ -257,10 +257,13 @@ public partial class Home : IAsyncDisposable
         if (localSeat < 0)
             return new Card?[2];
 
-        int holeCardCount = state.Players
-            .FirstOrDefault(player => player.Seat == localSeat)?
-            .HoleCardCount ?? 2;
+        PlayerStateDto? localDto = state.Players.FirstOrDefault(player => player.Seat == localSeat);
+        if (localDto != null && localDto.HoleCards != null && localDto.HoleCards.Count > 0)
+        {
+            return localDto.HoleCards.Select(ParseCard).ToArray();
+        }
 
+        int holeCardCount = state.Players.FirstOrDefault(player => player.Seat == localSeat)?.HoleCardCount ?? 2;
         return new Card?[holeCardCount];
     }
 
@@ -369,7 +372,10 @@ public partial class Home : IAsyncDisposable
             Folded = player.Folded,
             IsAllIn = player.IsAllIn,
             IsLocalPlayer = isLocalPlayer,
-            HoleCards = new Card?[2]
+            HoleCards = player.HoleCards != null && player.HoleCards.Count > 0
+                ? player.HoleCards.Select(ParseCard).ToArray()
+                : new Card?[2],
+            IsWinner = player.IsWinner
         };
     }
 

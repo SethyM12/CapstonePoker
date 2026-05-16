@@ -50,4 +50,6 @@ public sealed class UiSeatState
     public bool IsLocalPlayer { get; set; }
 
     public Card?[] HoleCards { get; set; } = new Card?[2];
+    
+    public bool IsWinner { get; set; } =  false;
 }
