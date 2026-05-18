@@ -12,10 +12,12 @@ public sealed record TableStateDto(
     String Street,
     uint Pot,
     uint CurrentBet,
+    uint MinimumRaise,
     short DealerSeat,
     short CurrentTurnSeat,
     List<PlayerStateDto> Players,
-    List<CardDto?> CommunityCards
+    List<CardDto?> CommunityCards,
+    bool AwaitingDealerAdvance
 );
 
 public sealed record PlayerStateDto(
@@ -26,7 +28,9 @@ public sealed record PlayerStateDto(
     uint Bet,
     bool Folded,
     bool IsAllIn,
-    int HoleCardCount
+    int HoleCardCount,
+    List<CardDto?> HoleCards,
+    bool IsWinner
 );
 
 public sealed record CardDto(
@@ -253,6 +257,24 @@ public sealed class PokerHub : Hub
         await BroadcastTableState(tableId);
     }
     
+    public async Task AdvanceStreet(String tableId)
+    {
+        EnsureTableId(tableId);
+
+        if (!gameManager.TryGetTable(tableId, out Table? table) || table == null)
+            throw new HubException("Table not found.");
+
+        Player? actor = table.GetPlayer(Context.ConnectionId);
+        if (actor == null)
+            throw new HubException("You are not seated in this game.");
+
+        bool advanced = gameManager.TryAdvanceStreet(tableId, actor.Seat);
+        if (!advanced)
+            throw new HubException("Could not advance street.");
+
+        await BroadcastTableState(tableId);
+    }
+    
     #endregion
     
     #region Invitations
@@ -471,16 +493,28 @@ public sealed class PokerHub : Hub
 
         List<PlayerStateDto> players = table.Players
             .OrderBy(p => p.Seat)
-            .Select(p => new PlayerStateDto(
-                p.ConnectionId,
-                p.Name,
-                p.Seat,
-                p.Chips,
-                p.Bet,
-                p.Folded,
-                p.IsAllIn,
-                p.Cards.Count
-            ))
+            .Select(p =>
+            {
+                bool revealHoleCards = state != null && state.CurrentStreet == HandStreet.Showdown;
+                List<CardDto?> holeCards = revealHoleCards
+                    ? p.Cards.Select(c => c == null ? null : new CardDto(c.Rank.ToString(), c.Suit.ToString())).ToList()
+                    : new List<CardDto?>();
+
+                bool isWinner = table.LastShowdownWinners != null && table.LastShowdownWinners.Contains(p.Seat);
+
+                return new PlayerStateDto(
+                    p.ConnectionId,
+                    p.Name,
+                    p.Seat,
+                    p.Chips,
+                    p.Bet,
+                    p.Folded,
+                    p.IsAllIn,
+                    p.Cards.Count,
+                    holeCards,
+                    isWinner
+                );
+            })
             .ToList();
 
         List<CardDto?> communityCards = (state?.CommunityCards ?? new Card[5])
@@ -493,10 +527,12 @@ public sealed class PokerHub : Hub
             state?.CurrentStreet.ToString() ?? nameof(HandStreet.PreDeal),
             state?.Pot ?? 0,
             state?.CurrentBet ?? 0,
-            state?.DealerPosition ?? 0,
+            state?.MinimumRaise ?? 0,
+            state?.DealerPosition ?? table.DealerSeat,
             state?.CurrentPlayerPosition ?? 0,
             players,
-            communityCards
+            communityCards,
+            state?.AwaitingDealerAdvance ?? false
         );
     }
 }

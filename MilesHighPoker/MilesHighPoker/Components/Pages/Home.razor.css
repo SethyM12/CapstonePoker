@@ -433,3 +433,18 @@
     font-size: clamp(0.9rem, 1.1vw, 1.1rem);
     color: #b0b0b0;
 }
+
+.winner-badge {
+    display:inline-block;
+    margin-left:.5rem;
+    padding:.15rem .45rem;
+    background: gold;
+    color: #102010;
+    font-weight:700;
+    border-radius:.25rem;
+    font-size:.8rem;
+}
+
+.winner-seat {
+    box-shadow: 0 0 0 3px rgba(255,215,0,0.12) inset;
+}

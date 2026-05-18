@@ -26,6 +26,22 @@ public partial class Home : IAsyncDisposable
     private String StatusMessage { get; set; } = "Connecting...";
     private bool isStartingHand;
     private Card?[] localHoleCards = new Card?[2];
+    
+    private string raiseInput = ""; // bound to the numeric input
+    private uint MinTotalBet => uiState.CurrentBet + uiState.MinimumRaise;
+    
+    private uint MaxTotalBet
+    {
+        get
+        {
+            // local seat is at SeatSlots[4] (your code keeps that mapping)
+            UiSeatState? local = SeatSlots.Length > 4 ? SeatSlots[4] : null;
+            if (local == null)
+                return MinTotalBet;
+            // player's maximum total bet for the street is their existing bet + chips (all-in)
+            return local.Bet + local.Chips;
+        }
+    }
 
     // Use TableIdQuery if provided; otherwise redirect back
     private String ResolvedTableId =>
@@ -45,6 +61,15 @@ public partial class Home : IAsyncDisposable
     private bool IsLocalPlayerDealer =>
         uiState.LocalSeat >= 0 &&
         uiState.LocalSeat == uiState.DealerSeat;
+    
+    private bool CanDealerAdvanceStreet =>
+        uiState.IsHandRunning &&
+        uiState.AwaitingDealerAdvance &&
+        IsLocalPlayerDealer;
+
+    private bool CanPlayerAct =>
+        IsLocalPlayerTurn &&
+        !uiState.AwaitingDealerAdvance;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -187,14 +212,41 @@ public partial class Home : IAsyncDisposable
             Street = ParseStreet(state.Street),
             Pot = state.Pot,
             CurrentBet = state.CurrentBet,
+            MinimumRaise = state.MinimumRaise,
             DealerSeat = state.DealerSeat,
             CurrentTurnSeat = state.CurrentTurnSeat,
             LocalSeat = localSeat,
             CommunityCards = state.CommunityCards.Select(ParseCard).ToArray(),
-            // prefer previously-received local hole cards if any; otherwise GetLocalHoleCards fallback
             LocalHoleCards = GetLocalHoleCards(state, localSeat, previousLocalHoleCards),
-            Seats = SeatSlots.Where(seat => seat is not null).Select(seat => seat!).ToList()
+            Seats = SeatSlots.Where(seat => seat is not null).Select(seat => seat!).ToList(),
+            AwaitingDealerAdvance = state.AwaitingDealerAdvance  // ADD THIS
         };
+    }
+    
+    private async Task AdvanceStreetAsync()
+    {
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+        {
+            StatusMessage = "Not connected to server.";
+            return;
+        }
+
+        if (!CanDealerAdvanceStreet)
+        {
+            StatusMessage = "Cannot advance street right now.";
+            return;
+        }
+
+        try
+        {
+            await hubConnection.InvokeAsync("AdvanceStreet", ResolvedTableId);
+            await RefreshTableStateAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error advancing street: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private Card?[] GetLocalHoleCards(TableStateDto state, short localSeat, Card?[]? previousLocalHoleCards = null)
@@ -205,10 +257,13 @@ public partial class Home : IAsyncDisposable
         if (localSeat < 0)
             return new Card?[2];
 
-        int holeCardCount = state.Players
-            .FirstOrDefault(player => player.Seat == localSeat)?
-            .HoleCardCount ?? 2;
+        PlayerStateDto? localDto = state.Players.FirstOrDefault(player => player.Seat == localSeat);
+        if (localDto != null && localDto.HoleCards != null && localDto.HoleCards.Count > 0)
+        {
+            return localDto.HoleCards.Select(ParseCard).ToArray();
+        }
 
+        int holeCardCount = state.Players.FirstOrDefault(player => player.Seat == localSeat)?.HoleCardCount ?? 2;
         return new Card?[holeCardCount];
     }
 
@@ -259,10 +314,10 @@ public partial class Home : IAsyncDisposable
             return offset switch
             {
                 0 => 4, // local/current
-                1 => 3, // bottom-right (next clockwise)
-                2 => 1, // top-right
-                3 => 0, // top-left
-                4 => 2, // bottom-left
+                1 => 2, // (next clockwise)
+                2 => 0,
+                3 => 1,
+                4 => 3,
                 _ => throw new ArgumentOutOfRangeException(nameof(offset))
             };
         }
@@ -317,7 +372,10 @@ public partial class Home : IAsyncDisposable
             Folded = player.Folded,
             IsAllIn = player.IsAllIn,
             IsLocalPlayer = isLocalPlayer,
-            HoleCards = new Card?[2]
+            HoleCards = player.HoleCards != null && player.HoleCards.Count > 0
+                ? player.HoleCards.Select(ParseCard).ToArray()
+                : new Card?[2],
+            IsWinner = player.IsWinner
         };
     }
 
@@ -363,7 +421,7 @@ public partial class Home : IAsyncDisposable
         if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
             return;
 
-        if (!IsLocalPlayerTurn)
+        if (!CanPlayerAct)
             return;
 
         try
@@ -395,6 +453,43 @@ public partial class Home : IAsyncDisposable
     private Task RaiseAsync(uint totalBet)
     {
         return SubmitActionAsync(nameof(PlayerAction.Raise), totalBet);
+    }
+    
+private async Task RaiseClickedAsync()
+    {
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+        {
+            StatusMessage = "Not connected to server.";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+        
+        if (!IsLocalPlayerTurn)
+        {
+            StatusMessage = "Not your turn.";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+    
+        if (!uint.TryParse(raiseInput, out uint requestedTotalBet))
+        {
+            StatusMessage = "Enter a numeric raise total (e.g. 150).";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+    
+        // enforce minimum total bet: CurrentBet + MinimumRaise
+        uint minTotal = MinTotalBet;
+        if (requestedTotalBet < minTotal)
+            requestedTotalBet = minTotal;
+    
+        // enforce maximum total bet (player's bet + chips)
+        uint maxTotal = MaxTotalBet;
+        if (requestedTotalBet > maxTotal)
+            requestedTotalBet = maxTotal;
+    
+        // call existing RaiseAsync that expects the player's total bet for the street
+        await RaiseAsync(requestedTotalBet);
     }
 
     private static String ToCardFile(Card card)

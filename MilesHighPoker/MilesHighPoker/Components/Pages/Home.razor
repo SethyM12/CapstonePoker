@@ -8,11 +8,6 @@
 <div class="app-container">
     <h1 class="text-center p-1">Miles High Poker</h1>
 
-    @if (!String.IsNullOrWhiteSpace(StatusMessage))
-    {
-        <p class="text-center game-status mb-2">@StatusMessage</p>
-    }
-
     <div id="gameplay-div" class="container">
         <div id="community-card-div">
             @for (int i = 0; i < uiState.CommunityCards.Length; i++)
@@ -26,7 +21,7 @@
                         Card card = uiState.CommunityCards[i]!;
                         <img class="card-face-image"
                              src="@ToCardFile(card)"
-                             alt="@($"{card.Rank} of {card.Suit}")" />
+                             alt="@($"{card.Rank} of {card.Suit}")"/>
                     }
                 </div>
             }
@@ -47,10 +42,20 @@
             UiSeatState? bottomRightSeat = SeatSlots[3];
             UiSeatState? currentSeat = SeatSlots[4];
             const int HOLE_CARD_COUNT = 2;
-            string cardBackPath = "/images/cards/card_back.png";
+            String cardBackPath = "/images/cards/card_back.png";
+
+            // helpers for check/call rendering
+            uint localBet = currentSeat?.Bet ?? 0;
+            uint callAmount = uiState.CurrentBet > localBet ? uiState.CurrentBet - localBet : 0;
+
+            bool SeatHasRevealedCards(UiSeatState? seat) =>
+                seat != null && seat.HoleCards != null && seat.HoleCards.Any(c => c is not null);
         }
 
-        <div id="top-left-player" class="player-seat @(topLeftSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(topLeftSeat?.Seat == uiState.CurrentTurnSeat ? "current-turn" : "") @(topLeftSeat?.Folded ?? false ? "folded" : "")">
+        @* Player seat template: extract repeated pattern inline for readability *@
+
+        <div id="top-left-player"
+             class="player-seat @(topLeftSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(topLeftSeat?.Seat == uiState.CurrentTurnSeat ? "current-turn" : "") @(topLeftSeat?.Folded ?? false ? "folded" : "") @(topLeftSeat?.IsWinner ?? false ? "winner-seat" : "")">
             @if (topLeftSeat is not null)
             {
                 @if (uiState.IsHandRunning)
@@ -59,20 +64,26 @@
                         @for (int i = 0; i < HOLE_CARD_COUNT; i++)
                         {
                             <div id="top-left-player-card-@i" class="player-card-slot">
-                                @if (topLeftSeat.Seat == currentSeat?.Seat)
+                                @* Show revealed hole cards (everyone) if present,
+                                   otherwise show local player's faceup, otherwise show back *@
+                                @if (SeatHasRevealedCards(topLeftSeat))
                                 {
-                                    // local player's seat: show face-up local cards
+                                    if (topLeftSeat.HoleCards.Length > i && topLeftSeat.HoleCards[i] is not null)
+                                    {
+                                        Card card = topLeftSeat.HoleCards[i]!;
+                                        <img class="card-face-image" src="@ToCardFile(card)" alt="@($"{card.Rank} of {card.Suit}")" />
+                                    }
+                                }
+                                else if (topLeftSeat.Seat == currentSeat?.Seat)
+                                {
                                     if (uiState.LocalHoleCards.Length > i && uiState.LocalHoleCards[i] is not null)
                                     {
                                         Card card = uiState.LocalHoleCards[i]!;
-                                        <img class="card-face-image"
-                                             src="@ToCardFile(card)"
-                                             alt="@($"{card.Rank} of {card.Suit}")" />
+                                        <img class="card-face-image" src="@ToCardFile(card)" alt="@($"{card.Rank} of {card.Suit}")" />
                                     }
                                 }
                                 else
                                 {
-                                    // other players: show card back
                                     <img class="card-back-image" src="@cardBackPath" alt="card back" />
                                 }
                             </div>
@@ -84,7 +95,11 @@
                     @topLeftSeat.Name
                     @if (topLeftSeat.Seat == uiState.DealerSeat)
                     {
-                        <span class="dealer-badge">  (Dealer)</span>
+                        <span class="dealer-badge">D</span>
+                    }
+                    @if (topLeftSeat.IsWinner)
+                    {
+                        <span class="winner-badge">WINNER</span>
                     }
                 </div>
                 <div id="top-left-player-money" class="player-money">$@topLeftSeat.Chips</div>
@@ -92,6 +107,7 @@
                 {
                     <div class="player-bet">Bet: $@topLeftSeat.Bet</div>
                 }
+
                 @if (topLeftSeat.IsAllIn)
                 {
                     <div class="player-status all-in-text">ALL IN</div>
@@ -99,7 +115,8 @@
             }
         </div>
 
-        <div id="top-right-player" class="player-seat @(topRightSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(topRightSeat?.Seat == uiState.CurrentTurnSeat ? "current-turn" : "") @(topRightSeat?.Folded ?? false ? "folded" : "")">
+        <div id="top-right-player"
+             class="player-seat @(topRightSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(topRightSeat?.Seat == uiState.CurrentTurnSeat ? "current-turn" : "") @(topRightSeat?.Folded ?? false ? "folded" : "") @(topRightSeat?.IsWinner ?? false ? "winner-seat" : "")">
             @if (topRightSeat is not null)
             {
                 @if (uiState.IsHandRunning)
@@ -108,14 +125,20 @@
                         @for (int i = 0; i < HOLE_CARD_COUNT; i++)
                         {
                             <div id="top-right-player-card-@i" class="player-card-slot">
-                                @if (topRightSeat.Seat == currentSeat?.Seat)
+                                @if (SeatHasRevealedCards(topRightSeat))
+                                {
+                                    if (topRightSeat.HoleCards.Length > i && topRightSeat.HoleCards[i] is not null)
+                                    {
+                                        Card card = topRightSeat.HoleCards[i]!;
+                                        <img class="card-face-image" src="@ToCardFile(card)" alt="@($"{card.Rank} of {card.Suit}")" />
+                                    }
+                                }
+                                else if (topRightSeat.Seat == currentSeat?.Seat)
                                 {
                                     if (uiState.LocalHoleCards.Length > i && uiState.LocalHoleCards[i] is not null)
                                     {
                                         Card card = uiState.LocalHoleCards[i]!;
-                                        <img class="card-face-image"
-                                             src="@ToCardFile(card)"
-                                             alt="@($"{card.Rank} of {card.Suit}")" />
+                                        <img class="card-face-image" src="@ToCardFile(card)" alt="@($"{card.Rank} of {card.Suit}")" />
                                     }
                                 }
                                 else
@@ -131,7 +154,11 @@
                     @topRightSeat.Name
                     @if (topRightSeat.Seat == uiState.DealerSeat)
                     {
-                        <span class="dealer-badge">  (Dealer)</span>
+                        <span class="dealer-badge">D</span>
+                    }
+                    @if (topRightSeat.IsWinner)
+                    {
+                        <span class="winner-badge">WINNER</span>
                     }
                 </div>
                 <div id="top-right-player-money" class="player-money">$@topRightSeat.Chips</div>
@@ -139,6 +166,7 @@
                 {
                     <div class="player-bet">Bet: $@topRightSeat.Bet</div>
                 }
+
                 @if (topRightSeat.IsAllIn)
                 {
                     <div class="player-status all-in-text">ALL IN</div>
@@ -146,7 +174,8 @@
             }
         </div>
 
-        <div id="bottom-left-player" class="player-seat @(bottomLeftSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(bottomLeftSeat?.Seat == uiState.CurrentTurnSeat ? "current-turn" : "") @(bottomLeftSeat?.Folded ?? false ? "folded" : "")">
+        <div id="bottom-left-player"
+             class="player-seat @(bottomLeftSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(bottomLeftSeat?.Seat == uiState.CurrentTurnSeat ? "current-turn" : "") @(bottomLeftSeat?.Folded ?? false ? "folded" : "") @(bottomLeftSeat?.IsWinner ?? false ? "winner-seat" : "")">
             @if (bottomLeftSeat is not null)
             {
                 @if (uiState.IsHandRunning)
@@ -155,14 +184,20 @@
                         @for (int i = 0; i < HOLE_CARD_COUNT; i++)
                         {
                             <div id="bottom-left-player-card-@i" class="player-card-slot">
-                                @if (bottomLeftSeat.Seat == currentSeat?.Seat)
+                                @if (SeatHasRevealedCards(bottomLeftSeat))
+                                {
+                                    if (bottomLeftSeat.HoleCards.Length > i && bottomLeftSeat.HoleCards[i] is not null)
+                                    {
+                                        Card card = bottomLeftSeat.HoleCards[i]!;
+                                        <img class="card-face-image" src="@ToCardFile(card)" alt="@($"{card.Rank} of {card.Suit}")" />
+                                    }
+                                }
+                                else if (bottomLeftSeat.Seat == currentSeat?.Seat)
                                 {
                                     if (uiState.LocalHoleCards.Length > i && uiState.LocalHoleCards[i] is not null)
                                     {
                                         Card card = uiState.LocalHoleCards[i]!;
-                                        <img class="card-face-image"
-                                             src="@ToCardFile(card)"
-                                             alt="@($"{card.Rank} of {card.Suit}")" />
+                                        <img class="card-face-image" src="@ToCardFile(card)" alt="@($"{card.Rank} of {card.Suit}")" />
                                     }
                                 }
                                 else
@@ -178,7 +213,11 @@
                     @bottomLeftSeat.Name
                     @if (bottomLeftSeat.Seat == uiState.DealerSeat)
                     {
-                        <span class="dealer-badge">  (Dealer)</span>
+                        <span class="dealer-badge">D</span>
+                    }
+                    @if (bottomLeftSeat.IsWinner)
+                    {
+                        <span class="winner-badge">WINNER</span>
                     }
                 </div>
                 <div id="bottom-left-player-money" class="player-money">$@bottomLeftSeat.Chips</div>
@@ -186,6 +225,7 @@
                 {
                     <div class="player-bet">Bet: $@bottomLeftSeat.Bet</div>
                 }
+
                 @if (bottomLeftSeat.IsAllIn)
                 {
                     <div class="player-status all-in-text">ALL IN</div>
@@ -193,7 +233,8 @@
             }
         </div>
 
-        <div id="bottom-right-player" class="player-seat @(bottomRightSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(bottomRightSeat?.Seat == uiState.CurrentTurnSeat ? "current-turn" : "") @(bottomRightSeat?.Folded ?? false ? "folded" : "")">
+        <div id="bottom-right-player"
+             class="player-seat @(bottomRightSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(bottomRightSeat?.Seat == uiState.CurrentTurnSeat ? "current-turn" : "") @(bottomRightSeat?.Folded ?? false ? "folded" : "") @(bottomRightSeat?.IsWinner ?? false ? "winner-seat" : "")">
             @if (bottomRightSeat is not null)
             {
                 @if (uiState.IsHandRunning)
@@ -202,14 +243,20 @@
                         @for (int i = 0; i < HOLE_CARD_COUNT; i++)
                         {
                             <div id="bottom-right-player-card-@i" class="player-card-slot">
-                                @if (bottomRightSeat.Seat == currentSeat?.Seat)
+                                @if (SeatHasRevealedCards(bottomRightSeat))
+                                {
+                                    if (bottomRightSeat.HoleCards.Length > i && bottomRightSeat.HoleCards[i] is not null)
+                                    {
+                                        Card card = bottomRightSeat.HoleCards[i]!;
+                                        <img class="card-face-image" src="@ToCardFile(card)" alt="@($"{card.Rank} of {card.Suit}")" />
+                                    }
+                                }
+                                else if (bottomRightSeat.Seat == currentSeat?.Seat)
                                 {
                                     if (uiState.LocalHoleCards.Length > i && uiState.LocalHoleCards[i] is not null)
                                     {
                                         Card card = uiState.LocalHoleCards[i]!;
-                                        <img class="card-face-image"
-                                             src="@ToCardFile(card)"
-                                             alt="@($"{card.Rank} of {card.Suit}")" />
+                                        <img class="card-face-image" src="@ToCardFile(card)" alt="@($"{card.Rank} of {card.Suit}")" />
                                     }
                                 }
                                 else
@@ -225,7 +272,11 @@
                     @bottomRightSeat.Name
                     @if (bottomRightSeat.Seat == uiState.DealerSeat)
                     {
-                        <span class="dealer-badge">  (Dealer)</span>
+                        <span class="dealer-badge">D</span>
+                    }
+                    @if (bottomRightSeat.IsWinner)
+                    {
+                        <span class="winner-badge">WINNER</span>
                     }
                 </div>
                 <div id="bottom-right-player-money" class="player-money">$@bottomRightSeat.Chips</div>
@@ -233,6 +284,7 @@
                 {
                     <div class="player-bet">Bet: $@bottomRightSeat.Bet</div>
                 }
+
                 @if (bottomRightSeat.IsAllIn)
                 {
                     <div class="player-status all-in-text">ALL IN</div>
@@ -240,7 +292,8 @@
             }
         </div>
 
-        <div id="current-player-div" class="player-seat current-player-seat @(currentSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(currentSeat?.Folded ?? false ? "folded" : "")">
+        <div id="current-player-div"
+             class="player-seat current-player-seat @(currentSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(currentSeat?.Folded ?? false ? "folded" : "") @(currentSeat?.IsWinner ?? false ? "winner-seat" : "")">
             @if (currentSeat is not null)
             {
                 @if (uiState.IsHandRunning)
@@ -249,12 +302,18 @@
                         @for (int i = 0; i < uiState.LocalHoleCards.Length; i++)
                         {
                             <div id="current-player-card-@i" class="player-card-slot">
-                                @if (uiState.LocalHoleCards[i] is not null)
+                                @if (SeatHasRevealedCards(currentSeat))
+                                {
+                                    if (currentSeat.HoleCards.Length > i && currentSeat.HoleCards[i] is not null)
+                                    {
+                                        Card card = currentSeat.HoleCards[i]!;
+                                        <img class="card-face-image" src="@ToCardFile(card)" alt="@($"{card.Rank} of {card.Suit}")" />
+                                    }
+                                }
+                                else if (uiState.LocalHoleCards[i] is not null)
                                 {
                                     Card card = uiState.LocalHoleCards[i]!;
-                                    <img class="card-face-image"
-                                         src="@ToCardFile(card)"
-                                         alt="@($"{card.Rank} of {card.Suit}")" />
+                                    <img class="card-face-image" src="@ToCardFile(card)" alt="@($"{card.Rank} of {card.Suit}")" />
                                 }
                             </div>
                         }
@@ -265,15 +324,20 @@
                     @currentSeat.Name
                     @if (currentSeat.Seat == uiState.DealerSeat)
                     {
-                        <span class="dealer-badge">  (Dealer)</span>
+                        <span class="dealer-badge">D</span>
                     }
                     (YOU)
+                    @if (currentSeat.IsWinner)
+                    {
+                        <span class="winner-badge">WINNER</span>
+                    }
                 </div>
                 <div id="current-player-money" class="player-money">$@currentSeat.Chips</div>
                 @if (currentSeat.Bet > 0)
                 {
                     <div class="player-bet">Bet: $@currentSeat.Bet</div>
                 }
+
                 @if (currentSeat.IsAllIn)
                 {
                     <div class="player-status all-in-text">ALL IN</div>
@@ -288,24 +352,71 @@
                     <span class="action-label">Deal</span>
                 </button>
             }
-            @if (IsLocalPlayerTurn)
+            @if (CanDealerAdvanceStreet)
+            {
+                <button class="btn btn-success" @onclick="AdvanceStreetAsync">
+                    <span class="action-label">
+                        @(uiState.Street switch
+                        {
+                            HandStreet.PreFlop => "Deal Flop",
+                            HandStreet.Flop => "Deal Turn",
+                            HandStreet.Turn => "Deal River",
+                            HandStreet.River => "Showdown",
+                            HandStreet.Showdown => "Finalize Showdown",
+                            _ => "Continue"
+                        })
+                    </span>
+                </button>
+            }
+            @if (CanPlayerAct)
             {
                 <button class="btn btn-danger" @onclick="FoldAsync">
                     <span class="action-label">Fold</span>
                 </button>
-                <button class="btn btn-warning" @onclick="CheckAsync">
-                    <span class="action-label">Check</span>
-                </button>
-                <button class="btn btn-info" @onclick="CallAsync">
-                    <span class="action-label">Call</span>
-                </button>
-                <button class="btn btn-primary" @onclick="@(() => RaiseAsync(100))">
-                    <span class="action-label">Raise</span>
-                </button>
+
+                @if (uiState.CurrentBet == 0 || localBet >= uiState.CurrentBet)
+                {
+                    <button class="btn btn-warning" @onclick="CheckAsync">
+                        <span class="action-label">Check</span>
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-info" @onclick="CallAsync">
+                        <span class="action-label">Call $@callAmount</span>
+                    </button>
+                }
+
+                <div class="d-inline-flex align-items-center" style="gap:.4rem; min-width:220px;">
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           style="width:120px;"
+                           @bind="raiseInput"
+                           min="@MinTotalBet"
+                           max="@MaxTotalBet"
+                           placeholder="@($"Min: {MinTotalBet}")"/>
+
+                    <button class="btn btn-primary"
+                            @onclick="RaiseClickedAsync">
+                        <span class="action-label">Raise</span>
+                    </button>
+                </div>
+
+                @if (uiState.MinimumRaise > 0)
+                {
+                    <div class="small text-muted mt-1">
+                        Min raise increment: $@uiState.MinimumRaise · Min total bet: $@MinTotalBet · Max (all-in):
+                        $@MaxTotalBet
+                    </div>
+                }
             }
-            else if (uiState.IsHandRunning && currentSeat?.Folded == false && currentSeat?.IsAllIn == false)
+            else if (uiState.IsHandRunning && currentSeat is { Folded: false, IsAllIn: false } && !uiState.AwaitingDealerAdvance)
             {
                 <p class="text-muted">Waiting for your turn...</p>
+            }
+            else if (uiState.AwaitingDealerAdvance && !IsLocalPlayerDealer)
+            {
+                <p class="text-muted">Waiting for dealer to advance...</p>
             }
         </div>
     </div>
@@ -329,8 +440,9 @@
     <section class="instruction-section">
         <h3>Betting</h3>
         <ul>
-            <li>On your turn, you can usually Fold, Call, or Raise.</li>
+            <li>On your turn, you can usually Fold, Check, Call, or Raise.</li>
             <li><strong>Fold:</strong> Exit the current hand and forfeit chips already committed.</li>
+            <li><strong>Check:</strong> Continue playing without putting any more chips in the pot.</li>
             <li><strong>Call:</strong> Match the current highest bet.</li>
             <li><strong>Raise:</strong> Increase the current highest bet for other players to match.</li>
             <li>Each Raise must be at least the size of the last full Raise.</li>
@@ -351,11 +463,16 @@
     <section class="instruction-section">
         <h3>Special Cases</h3>
         <ul>
-            <li><strong>All-in:</strong> A player can bet all remaining chips and can only win the amount they are eligible for.</li>
-            <li><strong>Side pots:</strong> If players are all-in for different amounts, extra chips are placed in side pots.</li>
-            <li><strong>Disconnected player:</strong> The timer running out will result in a Fold.</li>
+            <li><strong>All-in:</strong> A player can bet all remaining chips and can only win the amount they are
+                eligible for.
+            </li>
+            <li><strong>Side pots:</strong> If players are all-in for different amounts, extra chips are placed in side
+                pots.
+            </li>
             <li><strong>Insufficient chips to call:</strong> Player can go all-in for less than a full call amount.</li>
-            <li><strong>Split pot with odd chip:</strong> Extra chip goes to the tied winner first clockwise from the dealer.</li>
+            <li><strong>Split pot with odd chip:</strong> Extra chip goes to the tied winner first clockwise from the
+                dealer.
+            </li>
         </ul>
     </section>
 

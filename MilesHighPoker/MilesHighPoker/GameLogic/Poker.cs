@@ -116,8 +116,6 @@ public class PokerGame
     private Card[] CommunityCards { get; init; } = new Card[5];
 
     public HandStreet CurrentStreet { get; private set; } = HandStreet.PreDeal;
-    
-    public uint CurrentBet { get; set; } = 0;
 
     public PokerGame(Deck deck)
     {
