@@ -8,5 +8,9 @@
 
 Here you are able to see a full lobby list of connected players.
 
-Eventually, from there you will be able to select up to 4 other players 
-and engage in a good old fashioned game of Texas Hold 'Em Poker.
+From there, you can choose to invite up to 4 other players to play Texas Hold 'Em Poker!
+A dealer is randomly selected to start, and is changed in clockwise order from then on out.
+The dealer is responsible for dealing at all phases and advancing the game.
+
+It is poker as anyone would expect. Rounds advance as long as there are players remaining.
+At the end, the player remaining with the highest scoring hand is awarded the pot, and the game continues.
