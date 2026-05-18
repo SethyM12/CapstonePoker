@@ -1,0 +1,237 @@
+.hand-tester {
+    max-width: 1100px;
+    margin: 1.5rem auto;
+    padding: 1rem;
+    box-sizing: border-box;
+    color: #222;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* Board section */
+.board-section {
+    margin-bottom: 1.25rem;
+    text-align: center;
+}
+
+.board-section h4 {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+/* Row of cards */
+.cards-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* Generic card picker */
+.card-picker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 120px;
+    box-sizing: border-box;
+}
+
+/* small variant for hole cards */
+.card-picker.small {
+    width: 92px;
+}
+
+/* Image container (keeps consistent box for face-up/back or placeholder) */
+.card-image {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Actual image: fill available width but keep aspect ratio */
+.card-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+
+/* Placeholder when no card chosen */
+.empty-card {
+    width: 100%;
+    height: 138px; /* matches typical card aspect at the chosen widths */
+    max-height: 180px;
+    background: linear-gradient(180deg, #eaeaea 0%, #dcdcdc 100%);
+    border-radius: 6px;
+    border: 1px dashed rgba(0,0,0,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(0,0,0,0.6);
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+/* Compact placeholder height for small pickers */
+.card-picker.small .empty-card {
+    height: 105px;
+}
+
+/* Controls (selects) */
+.card-controls {
+    width: 100%;
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+
+.card-controls select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 6px 8px;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background: white;
+    width: 50%;
+    box-sizing: border-box;
+}
+
+/* Players section: two players side-by-side */
+.players-section {
+    display: flex;
+    gap: 18px;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+/* Each player block */
+.player-block {
+    flex: 1 1 45%;
+    max-width: 48%;
+    background: rgba(255,255,255,0.02);
+    padding: 8px 10px;
+    border-radius: 8px;
+    box-sizing: border-box;
+    min-width: 180px;
+}
+
+.player-block h5 {
+    margin: 0 0 8px 0;
+    font-size: 1rem;
+}
+
+/* Player row of cards */
+.player-block .cards-row {
+    justify-content: center;
+    gap: 10px;
+}
+
+/* Actions and results */
+.actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 0.75rem 0;
+}
+
+.results {
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.result-row {
+    display: flex;
+    gap: 18px;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.result-player {
+    flex: 1 1 45%;
+    max-width: 48%;
+    min-width: 200px;
+}
+
+.winner {
+    margin-top: 0.75rem;
+    text-align: center;
+}
+
+.badge {
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+/* Responsive adjustments */
+@media (max-width: 880px) {
+    .hand-tester {
+        padding: 0.75rem;
+    }
+
+    .card-picker {
+        width: 100px;
+    }
+
+    .card-picker.small {
+        width: 78px;
+    }
+
+    .empty-card {
+        height: 128px;
+    }
+
+    .card-picker.small .empty-card {
+        height: 95px;
+    }
+
+    .players-section {
+        gap: 12px;
+    }
+
+    .result-player {
+        min-width: 160px;
+    }
+}
+
+/* Mobile: stack players under board */
+@media (max-width: 640px) {
+    .players-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .player-block {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .cards-row {
+        flex-wrap: nowrap;
+        justify-content: center;
+    }
+
+    .card-controls select {
+        font-size: 0.85rem;
+        padding: 5px 6px;
+    }
+
+    .board-section .cards-row {
+        gap: 8px;
+        padding: 0 6px;
+        overflow-x: auto;
+    }
+
+    /* Slightly smaller community card images to fit phone width */
+    .board-section .card-image img {
+        max-width: 92px;
+    }
+}

@@ -1,5 +1,137 @@
-<h3>HandScoreTester</h3>
+@page "/hand-score-tester"
+@using MilesHighPoker.GameLogic
 
-@code {
-    
-}
+<h3>Hand Score Tester</h3>
+
+<p>
+    Use the selectors below to build a board (5 community cards) and two hole card hands.
+    Click Evaluate to see each hand's evaluated type and who wins.
+</p>
+
+<div class="hand-tester">
+    <section class="board-section">
+        <h4>Community Cards</h4>
+        <div class="cards-row">
+            @for (int i = 0; i < 5; i++)
+            {
+                int communityIndex = i;  @* snapshot the loop index for the binder *@
+                <div class="card-picker">
+                    <div class="card-image">
+                        @if (CommunityCards[communityIndex] is not null)
+                        {
+                            <img src="@ToCardFile(CommunityCards[communityIndex])" alt="@($"{CommunityCards[communityIndex].Rank} of {CommunityCards[communityIndex].Suit}")" />
+                        }
+                        else
+                        {
+                            <div class="empty-card">?</div>
+                        }
+                    </div>
+                    <div class="card-controls">
+                        <select @bind="CommunityRanks[communityIndex]">
+                            @foreach (CardRank r in Enum.GetValues(typeof(CardRank)))
+                            {
+                                <option value="@(r)">@r</option>
+                            }
+                        </select>
+                        <select @bind="CommunitySuits[communityIndex]">
+                            @foreach (CardSuit s in Enum.GetValues(typeof(CardSuit)))
+                            {
+                                <option value="@(s)">@s</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="players-section">
+        <h4>Players</h4>
+
+        @for (int p = 0; p < 2; p++)
+        {
+            int playerIndex = p;  @* snapshot player index *@
+            <div class="player-block">
+                <h5>Player @(playerIndex + 1)</h5>
+                <div class="cards-row">
+                    @for (int c = 0; c < 2; c++)
+                    {
+                        int cardIndex = c;  @* snapshot card index within player *@
+                        <div class="card-picker small">
+                            <div class="card-image">
+                                @if (PlayerCards[playerIndex][cardIndex] is not null)
+                                {
+                                    <img src="@ToCardFile(PlayerCards[playerIndex][cardIndex])" alt="@($"{PlayerCards[playerIndex][cardIndex].Rank} of {PlayerCards[playerIndex][cardIndex].Suit}")" />
+                                }
+                                else
+                                {
+                                    <div class="empty-card">?</div>
+                                }
+                            </div>
+                            <div class="card-controls">
+                                <select @bind="PlayerRanks[playerIndex][cardIndex]">
+                                    @foreach (CardRank r in Enum.GetValues(typeof(CardRank)))
+                                    {
+                                        <option value="@(r)">@r</option>
+                                    }
+                                </select>
+                                <select @bind="PlayerSuits[playerIndex][cardIndex]">
+                                    @foreach (CardSuit s in Enum.GetValues(typeof(CardSuit)))
+                                    {
+                                        <option value="@(s)">@s</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+
+    <div class="actions">
+        <button class="btn btn-primary" @onclick="EvaluateAsync">Evaluate</button>
+        <button class="btn btn-secondary" @onclick="ResetDefaults">Reset</button>
+    </div>
+
+    <section class="results">
+        <h4>Results</h4>
+
+        @if (!String.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger">@ErrorMessage</div>
+        }
+
+        @if (LeftHand is not null && RightHand is not null)
+        {
+            <div class="result-row">
+                <div class="result-player">
+                    <strong>Player 1:</strong>
+                    <div>Hand: @LeftHand.Hand</div>
+                    <div>Values: @String.Join(", ", LeftHand.RankedValues)</div>
+                </div>
+
+                <div class="result-player">
+                    <strong>Player 2:</strong>
+                    <div>Hand: @RightHand.Hand</div>
+                    <div>Values: @String.Join(", ", RightHand.RankedValues)</div>
+                </div>
+            </div>
+
+            <div class="winner">
+                @if (Comparison > 0)
+                {
+                    <span class="badge badge-success">Player 1 wins</span>
+                }
+                else if (Comparison < 0)
+                {
+                    <span class="badge badge-success">Player 2 wins</span>
+                }
+                else
+                {
+                    <span class="badge badge-info">Tie</span>
+                }
+            </div>
+        }
+    </section>
+</div>
