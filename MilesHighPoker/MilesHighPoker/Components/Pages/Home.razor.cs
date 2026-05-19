@@ -27,7 +27,7 @@ public partial class Home : IAsyncDisposable
     private bool isStartingHand;
     private Card?[] localHoleCards = new Card?[2];
     
-    private string raiseInput = ""; // bound to the numeric input
+    private String raiseInput = ""; // bound to the numeric input
     private uint MinTotalBet => uiState.CurrentBet + uiState.MinimumRaise;
     
     private uint MaxTotalBet
@@ -488,8 +488,23 @@ private async Task RaiseClickedAsync()
         if (requestedTotalBet > maxTotal)
             requestedTotalBet = maxTotal;
     
-        // call existing RaiseAsync that expects the player's total bet for the street
-        await RaiseAsync(requestedTotalBet);
+        try
+        {
+            await RaiseAsync(requestedTotalBet);
+
+            // on success, clear the input
+            raiseInput = String.Empty;
+            StatusMessage = $"Raised to {requestedTotalBet}.";
+        }
+        catch (Exception ex)
+        {
+            // preserve the typed value on error so the user can retry/adjust
+            StatusMessage = $"Raise failed: {ex.Message}";
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private static String ToCardFile(Card card)
