@@ -348,78 +348,104 @@ public sealed class PokerHub : Hub
             accept
         );
 
+        // Notify initiator that one person responded
         await Clients.Client(invite.InitiatorConnectionId).SendAsync("InviteResponseReceived", inviteId, response);
 
-        Boolean shouldStartGame = false;
+        // Snapshots taken inside lock, but awaits occur after lock is released.
+        List<String> acceptedPlayersSnapshot = new();
+        List<String> declinedPlayersSnapshot = new();
+        List<String> pendingPlayersSnapshot = new();
+        bool allResponded = false;
+        bool shouldStartGame = false;
         String? newTableId = null;
-        List<String> acceptedPlayers = new();
 
         Object inviteLock = InviteLocks.GetOrAdd(inviteId, _ => new Object());
 
         lock (inviteLock)
         {
             if (!InvitedPlayersResponses.TryGetValue(inviteId, out ConcurrentDictionary<String, Boolean>? allResponses))
+            {
                 return;
+            }
 
+            // Record this response
             allResponses[Context.ConnectionId] = accept;
 
-            if (allResponses.Count == invite.InvitedConnectionIds.Count)
-            {
-                acceptedPlayers = allResponses
-                    .Where(kvp => kvp.Value)
-                    .Select(kvp => kvp.Key)
-                    .ToList();
+            // Snapshot current state
+            acceptedPlayersSnapshot = allResponses.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToList();
+            declinedPlayersSnapshot = allResponses.Where(kvp => !kvp.Value).Select(kvp => kvp.Key).ToList();
+            pendingPlayersSnapshot = invite.InvitedConnectionIds
+                .Where(id => !allResponses.ContainsKey(id))
+                .ToList();
 
-                // Clean up invite tracking first so the invite cannot resolve twice.
+            allResponded = allResponses.Count == invite.InvitedConnectionIds.Count;
+
+            if (allResponded)
+            {
+                // Clean up invite tracking so it cannot resolve twice.
                 ActiveInvites.TryRemove(inviteId, out _);
                 InvitedPlayersResponses.TryRemove(inviteId, out _);
                 InviteLocks.TryRemove(inviteId, out _);
 
-                if (acceptedPlayers.Count > 0)
+                if (acceptedPlayersSnapshot.Count > 0)
                 {
                     shouldStartGame = true;
                     newTableId = gameManager.CreateNewTableId();
                 }
             }
-        }
+        } // end lock
 
-        if (!shouldStartGame)
+        // After releasing the lock, notify the initiator of current invite progress
+        await Clients.Client(invite.InitiatorConnectionId)
+            .SendAsync("InviteProgress", inviteId, acceptedPlayersSnapshot, declinedPlayersSnapshot, pendingPlayersSnapshot);
+
+        if (!allResponded)
         {
-            // If everyone declined, the initiator can be told nothing started.
-            await Clients.Client(invite.InitiatorConnectionId)
-                .SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
-
+            // Not all invited players have responded yet; keep the invite active. Done.
             return;
         }
 
-        List<String> gamePlayers = acceptedPlayers
+        // All invitees have responded; resolve the invite:
+        if (!shouldStartGame)
+        {
+            // Everyone declined
+            await Clients.Client(invite.InitiatorConnectionId)
+                .SendAsync("AllInvitesResolved", inviteId, new List<String>());
+            return;
+        }
+
+        // We have at least one accepted player and should start the game.
+        List<String> gamePlayers = acceptedPlayersSnapshot
             .Append(invite.InitiatorConnectionId)
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
+        // Tell initiator which accepted players there were
         await Clients.Client(invite.InitiatorConnectionId)
-            .SendAsync("AllInvitesResolved", inviteId, acceptedPlayers);
+            .SendAsync("AllInvitesResolved", inviteId, acceptedPlayersSnapshot);
 
+        // Notify everyone who accepted (and the initiator) that the game is starting.
         foreach (String playerConnectionId in gamePlayers)
         {
             await Clients.Client(playerConnectionId)
                 .SendAsync("GameStarting", newTableId);
         }
     }
-
+    
     public async Task CancelInvites(String tableId, String inviteId)
     {
         EnsureTableId(tableId);
-
+    
         if (!ActiveInvites.TryGetValue(inviteId, out GameInviteDto? invite))
             throw new HubException("Invite not found.");
-
+    
         if (invite.InitiatorConnectionId != Context.ConnectionId)
             throw new HubException("Only the initiator can cancel this invite.");
-
+    
         ActiveInvites.TryRemove(inviteId, out _);
         InvitedPlayersResponses.TryRemove(inviteId, out _);
-
+        InviteLocks.TryRemove(inviteId, out _);  // Add this line
+    
         foreach (String connectionId in invite.InvitedConnectionIds)
         {
             await Clients.Client(connectionId).SendAsync("InviteCancelled", inviteId);

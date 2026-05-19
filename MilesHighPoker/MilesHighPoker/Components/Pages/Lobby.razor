@@ -92,36 +92,55 @@
             <h2>Game Invites</h2>
             <p>Waiting for responses...</p>
 
-            <div class="invite-responses">
-                @foreach (var player in WaitingPlayers.Where(p => SelectedPlayerIds.Contains(p.ConnectionId)))
+            <div class="invite-progress-section">
+                @if (AcceptedPlayers.Count > 0)
                 {
-                    <div class="response-row">
-                        <span>@player.Name</span>
-
-                        @if (InviteResponses.ContainsKey(player.ConnectionId))
+                    <div class="progress-group">
+                        <h4>Accepted (@AcceptedPlayers.Count)</h4>
+                        @foreach (var connectionId in AcceptedPlayers)
                         {
-                            @if (InviteResponses[player.ConnectionId] == null)
-                            {
-                                <span class="status pending">⏳ Pending</span>
-                            }
-                            else if (InviteResponses[player.ConnectionId] == true)
-                            {
-                                <span class="status accepted">✓ Accepted</span>
-                            }
-                            else
-                            {
-                                <span class="status declined">✗ Declined</span>
-                            }
+                            var player = WaitingPlayers.FirstOrDefault(p => p.ConnectionId == connectionId);
+                            <div class="progress-item accepted">
+                                <span>@(player?.Name ?? "Unknown")</span>
+                            </div>
                         }
-                        else
+                    </div>
+                }
+
+                @if (DeclinedPlayers.Count > 0)
+                {
+                    <div class="progress-group">
+                        <h4>Declined (@DeclinedPlayers.Count)</h4>
+                        @foreach (var connectionId in DeclinedPlayers)
                         {
-                            <span class="status pending">⏳ Pending</span>
+                            var player = WaitingPlayers.FirstOrDefault(p => p.ConnectionId == connectionId);
+                            <div class="progress-item declined">
+                                <span>@(player?.Name ?? "Unknown")</span>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (PendingPlayers.Count > 0)
+                {
+                    <div class="progress-group">
+                        <h4>Pending (@PendingPlayers.Count)</h4>
+                        @foreach (var connectionId in PendingPlayers)
+                        {
+                            var player = WaitingPlayers.FirstOrDefault(p => p.ConnectionId == connectionId);
+                            <div class="progress-item pending">
+                                <span>@(player?.Name ?? "Unknown")</span>
+                            </div>
                         }
                     </div>
                 }
             </div>
 
-            <button class="btn btn-secondary" @onclick="CloseInviteModal">Close</button>
+            <div class="modal-actions">
+                <button class="btn btn-danger" @onclick="CancelInvitesAsync">
+                    Cancel Invites
+                </button>
+            </div>
         </div>
     </div>
 }

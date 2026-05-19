@@ -23,6 +23,11 @@ public partial class Lobby : IAsyncDisposable
     private bool ShowInviteModal { get; set; }
     private String? CurrentInviteId { get; set; }
     private Dictionary<String, bool?> InviteResponses { get; set; } = new();
+    
+    // Track invite progress
+    private List<String> AcceptedPlayers { get; set; } = new();
+    private List<String> DeclinedPlayers { get; set; } = new();
+    private List<String> PendingPlayers { get; set; } = new();
 
     private sealed class IncomingInvite
     {
@@ -77,6 +82,18 @@ public partial class Lobby : IAsyncDisposable
                 InviteResponses[response.RespondentConnectionId] = response.Accepted;
                 _ = InvokeAsync(StateHasChanged);
             }
+        });
+
+        // NEW: Handle invite progress updates so inviter can see pending/accepted/declined in real-time
+        HubConnection.On<String, List<String>, List<String>, List<String>>("InviteProgress", (inviteId, accepted, declined, pending) =>
+        {
+            if (inviteId != CurrentInviteId)
+                return;
+
+            AcceptedPlayers = accepted;
+            DeclinedPlayers = declined;
+            PendingPlayers = pending;
+            _ = InvokeAsync(StateHasChanged);
         });
 
         HubConnection.On<String, List<String>>("AllInvitesResolved", (inviteId, acceptedPlayers) =>
@@ -212,6 +229,9 @@ public partial class Lobby : IAsyncDisposable
             List<String> invitedIds = SelectedPlayerIds.ToList();
 
             InviteResponses = invitedIds.ToDictionary(id => id, _ => (bool?)null);
+            AcceptedPlayers = new();
+            DeclinedPlayers = new();
+            PendingPlayers = invitedIds;
             CurrentInviteId = null;
             ShowInviteModal = true;
 
@@ -257,6 +277,24 @@ public partial class Lobby : IAsyncDisposable
         }
     }
 
+    private async Task CancelInvitesAsync()
+    {
+        if (HubConnection is null || String.IsNullOrWhiteSpace(CurrentInviteId))
+            return;
+
+        try
+        {
+            await HubConnection.InvokeAsync("CancelInvites", TableId, CurrentInviteId);
+            ResetOutgoingInviteState();
+            NameError = "Invites cancelled.";
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            NameError = ex.Message;
+        }
+    }
+
     private async Task StartGameWithPlayers(List<String> acceptedConnectionIds)
     {
         ResetOutgoingInviteState();
@@ -290,6 +328,9 @@ public partial class Lobby : IAsyncDisposable
         SelectedPlayerIds.Clear();
         InviteResponses.Clear();
         CurrentInviteId = null;
+        AcceptedPlayers.Clear();
+        DeclinedPlayers.Clear();
+        PendingPlayers.Clear();
     }
 
     private async Task LeaveLobbyIfJoinedAsync()
