@@ -209,12 +209,12 @@ public sealed class GameManager
         gameState.SetAwaitingDealerAdvance(false);
 
         // Advance one step only
-        AdvanceStreetOneStep(table, turnEngine);
+        AdvanceStreetOneStep(tableId, table, turnEngine);
 
         return true;
     }
 
-    private void AdvanceStreetOneStep(Table table, TurnEngine turnEngine)
+    private void AdvanceStreetOneStep(String tableId, Table table, TurnEngine turnEngine)
     {
         GameState gameState = table.CurrentGameState
                               ?? throw new InvalidOperationException("No game state is available.");
@@ -241,6 +241,7 @@ public sealed class GameManager
             case HandStreet.Showdown:
                 // Second press: finalize showdown, perform payouts and end the hand.
                 table.ResolveShowdownAndPayout();
+                EndHand(tableId);
                 return;
 
             default:
@@ -286,6 +287,7 @@ public sealed class GameManager
         
         if (tableRegistry.TryGetTable(tableId, out Table? table) && table != null)
         {
+            lastDealerSeatByTable[tableId] = table.DealerSeat;
             table.DealerSeat = PeekNextDealerSeat(tableId, table);
         }
     }

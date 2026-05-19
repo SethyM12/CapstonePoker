@@ -49,7 +49,7 @@
             uint callAmount = uiState.CurrentBet > localBet ? uiState.CurrentBet - localBet : 0;
 
             bool SeatHasRevealedCards(UiSeatState? seat) =>
-                seat != null && seat.HoleCards != null && seat.HoleCards.Any(c => c is not null);
+                seat != null && seat.HoleCards.Any(c => c is not null);
         }
 
         @* Player seat template: extract repeated pattern inline for readability *@
@@ -293,7 +293,8 @@
         </div>
 
         <div id="current-player-div"
-             class="player-seat current-player-seat @(currentSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(currentSeat?.Folded ?? false ? "folded" : "") @(currentSeat?.IsWinner ?? false ? "winner-seat" : "")">
+             class="player-seat current-player-seat @(currentSeat?.Seat == uiState.DealerSeat ? "dealer" : "") @(currentSeat?.Folded ?? false ? "folded" : "") @(currentSeat?.IsWinner ?? false ? "winner-seat" : "")
+                @(currentSeat?.Seat == uiState.CurrentTurnSeat ? "current-turn" : "")">
             @if (currentSeat is not null)
             {
                 @if (uiState.IsHandRunning)
